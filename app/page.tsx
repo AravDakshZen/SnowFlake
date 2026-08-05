@@ -147,7 +147,7 @@ export default function TracewisePage() {
               transition: "opacity 1s cubic-bezier(0.16,1,0.3,1) 0ms, filter 1s cubic-bezier(0.16,1,0.3,1) 0ms, transform 1s cubic-bezier(0.16,1,0.3,1) 0ms",
             }}
           >
-            Debug production<br />incidents before<br />they become<br />outages.
+            Find the signal.<br />Fix the cause.<br />Ship with<br />confidence.
           </h1>
 
           {/* 3 metrics — staggered after title */}
