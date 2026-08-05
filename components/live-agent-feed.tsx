@@ -3,26 +3,26 @@
 import { useEffect, useState, useRef } from "react"
 
 const AGENT_NAMES = [
-  "analyst-7f2a", "executor-3b1c", "monitor-9d4e", "researcher-2c8f",
-  "planner-5a3d", "writer-1e9b", "auditor-4f2c", "coder-8d1a",
-  "reviewer-6b3e", "scheduler-0c7f",
+  "checkout-api", "billing-worker", "edge-router", "search-index",
+  "auth-service", "webhooks", "catalog-api", "payments",
+  "recommendations", "notifications",
 ]
 
 const TASKS = [
-  "Reviewing 14 open PRs on main branch",
-  "Summarizing weekly Slack threads",
-  "Generating Q2 financial report",
-  "Running integration test suite",
-  "Scraping competitor pricing data",
-  "Drafting 23 cold emails from CRM",
-  "Parsing inbound invoices → DB",
-  "Monitoring uptime across 8 regions",
-  "Refactoring auth module — 3 files",
-  "Analyzing user churn signals",
-  "Syncing Notion docs with Linear",
-  "Tagging 1,200 support tickets",
-  "Deploying to staging environment",
-  "Processing webhook payloads",
+  "Correlating checkout errors across 3 regions",
+  "Tracing elevated p95 latency to deploy 8f2a",
+  "Investigating failed payment webhooks",
+  "Comparing error rate before and after rollback",
+  "Finding the first affected customer session",
+  "Summarizing production incident timeline",
+  "Checking dependency health for edge-router",
+  "Watching recovery signals after hotfix",
+  "Linking logs to checkout-api trace",
+  "Detecting anomaly in search-index writes",
+  "Verifying alert ownership and escalation",
+  "Building root cause evidence packet",
+  "Monitoring incident across 8 regions",
+  "Processing new Sentry error cluster",
 ]
 
 const REGIONS = ["us-east", "eu-west", "ap-south", "us-west", "eu-central"]
@@ -88,12 +88,12 @@ function ProgressBar({ initial }: { initial: number }) {
 
 // Stable seed rows — same on server and client, no random values
 const SEED_ROWS: AgentRow[] = [
-  { id: "A1B2C3", name: "analyst-7f2a",    task: "Generating Q2 financial report",       region: "us-east",    status: STATUSES[0], progress: 42, elapsed: "3m 12s", key: 0 },
-  { id: "D4E5F6", name: "executor-3b1c",   task: "Running integration test suite",       region: "eu-west",    status: STATUSES[0], progress: 67, elapsed: "7m 48s", key: 1 },
-  { id: "G7H8I9", name: "researcher-2c8f", task: "Scraping competitor pricing data",     region: "us-west",    status: STATUSES[3], progress: 18, elapsed: "1m 05s", key: 2 },
-  { id: "J0K1L2", name: "planner-5a3d",    task: "Syncing Notion docs with Linear",      region: "eu-central", status: STATUSES[0], progress: 55, elapsed: "5m 30s", key: 3 },
-  { id: "M3N4O5", name: "coder-8d1a",      task: "Refactoring auth module — 3 files",    region: "ap-south",   status: STATUSES[0], progress: 80, elapsed: "11m 22s", key: 4 },
-  { id: "P6Q7R8", name: "monitor-9d4e",    task: "Monitoring uptime across 8 regions",   region: "us-east",    status: STATUSES[4], progress: 99, elapsed: "14m 01s", key: 5 },
+  { id: "A1B2C3", name: "checkout-api",  task: "Correlating checkout errors across 3 regions", region: "us-east", status: STATUSES[0], progress: 42, elapsed: "3m 12s", key: 0 },
+  { id: "D4E5F6", name: "billing-worker", task: "Tracing elevated p95 latency to deploy 8f2a", region: "eu-west", status: STATUSES[0], progress: 67, elapsed: "7m 48s", key: 1 },
+  { id: "G7H8I9", name: "edge-router",   task: "Investigating failed payment webhooks", region: "us-west", status: STATUSES[3], progress: 18, elapsed: "1m 05s", key: 2 },
+  { id: "J0K1L2", name: "search-index",  task: "Comparing error rate before and after rollback", region: "eu-central", status: STATUSES[0], progress: 55, elapsed: "5m 30s", key: 3 },
+  { id: "M3N4O5", name: "auth-service",  task: "Finding the first affected customer session", region: "ap-south", status: STATUSES[0], progress: 80, elapsed: "11m 22s", key: 4 },
+  { id: "P6Q7R8", name: "webhooks",      task: "Watching recovery signals after hotfix", region: "us-east", status: STATUSES[4], progress: 99, elapsed: "14m 01s", key: 5 },
 ]
 
 export function LiveAgentFeed() {

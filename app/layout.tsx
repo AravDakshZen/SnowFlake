@@ -11,21 +11,21 @@ const _courierPrime = Courier_Prime({ weight: ["400", "700"], subsets: ["latin"]
 const _ibmPlexSans = IBM_Plex_Sans({ weight: ["300", "400", "500", "600"], subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Agentic — Autonomous AI Agents at Scale',
-  description: 'Deploy autonomous AI agents that think, act, and execute across any workflow. Connect 200+ integrations, run agents in parallel, and ship faster with the Agentic platform.',
-  keywords: ['AI agents', 'autonomous agents', 'LLM orchestration', 'AI automation', 'multi-agent platform'],
-  authors: [{ name: 'Agentic' }],
+  title: 'Tracewise — From Alert to Answer',
+  description: 'Tracewise helps engineering teams understand production incidents, correlate every signal, and resolve issues with confidence.',
+  keywords: ['observability', 'incident response', 'error investigation', 'distributed tracing', 'root cause analysis'],
+  authors: [{ name: 'Tracewise' }],
   openGraph: {
-    title: 'Agentic — Autonomous AI Agents at Scale',
-    description: 'Deploy autonomous AI agents that think, act, and execute across any workflow.',
+    title: 'Tracewise — From Alert to Answer',
+    description: 'Understand production incidents, correlate every signal, and resolve issues with confidence.',
     type: 'website',
-    url: 'https://agentic.ai',
-    siteName: 'Agentic',
+    url: 'https://tracewise.dev',
+    siteName: 'Tracewise',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Agentic — Autonomous AI Agents at Scale',
-    description: 'Deploy autonomous AI agents that think, act, and execute across any workflow.',
+    title: 'Tracewise — From Alert to Answer',
+    description: 'Understand production incidents, correlate every signal, and resolve issues with confidence.',
   },
   icons: {
     icon: [

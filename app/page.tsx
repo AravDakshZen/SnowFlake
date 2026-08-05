@@ -76,9 +76,7 @@ function Tag({ children }: { children: React.ReactNode }) {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export default function AgenticPage() {
-  const [email, setEmail] = useState("")
-  const [submitted, setSubmitted] = useState(false)
+export default function TracewisePage() {
   const [heroReady, setHeroReady] = useState(false)
   const [videoReady, setVideoReady] = useState(false)
   const handleIntroDone = useCallback(() => {
@@ -108,7 +106,7 @@ export default function AgenticPage() {
       <MobileNav />
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="relative h-screen overflow-hidden">
+      <section id="top" className="relative h-screen overflow-hidden">
 
         {/* Video background — zooms in once intro is done */}
         <video
@@ -149,15 +147,15 @@ export default function AgenticPage() {
               transition: "opacity 1s cubic-bezier(0.16,1,0.3,1) 0ms, filter 1s cubic-bezier(0.16,1,0.3,1) 0ms, transform 1s cubic-bezier(0.16,1,0.3,1) 0ms",
             }}
           >
-            Build &amp;<br />orchestrate AI<br />agents while<br />you sleep.
+            Debug production<br />incidents before<br />they become<br />outages.
           </h1>
 
           {/* 3 metrics — staggered after title */}
           <div className="flex gap-8 sm:gap-12">
             {[
-              { value: "50M+", label: "Tasks" },
-              { value: "99.9%", label: "Uptime" },
-              { value: "180+", label: "Countries" },
+              { value: "4.2M+", label: "Traces analyzed" },
+              { value: "99.99%", label: "Signal coverage" },
+              { value: "18s", label: "Mean time to insight" },
             ].map((stat, i) => (
               <div
                 key={i}
@@ -173,6 +171,10 @@ export default function AgenticPage() {
               </div>
             ))}
           </div>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a href="/dashboard" className="rounded-xl bg-[#111] px-5 py-3 text-xs tracking-widest text-white transition-colors hover:bg-black/75">OPEN DASHBOARD</a>
+            <a href="/demo" className="rounded-xl border border-black/10 bg-white/50 px-5 py-3 text-xs tracking-widest text-black/60 transition-colors hover:border-black/25 hover:text-black">WATCH DEMO</a>
+          </div>
         </div>
       </section>
 
@@ -181,9 +183,9 @@ export default function AgenticPage() {
         <div className="max-w-6xl mx-auto">
           <div className="mb-16">
             <PixelIcon type="platform" size={40} />
-            <div className="mt-4"><Tag>PLATFORM</Tag></div>
+            <div className="mt-4"><Tag>TRACEWISE PLATFORM</Tag></div>
             <RevealText className="mt-5 text-4xl md:text-5xl lg:text-6xl font-light tracking-tight leading-[1.05]">
-              {"Everything you need\nto ship agents."}
+              {"Every signal you need\nto resolve incidents."}
             </RevealText>
           </div>
 
@@ -272,23 +274,23 @@ export default function AgenticPage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ──────────────────────────────────────────────────── */}
+      {/* ── HOW TRACEWISE WORKS ───────────────────────────────────────────── */}
       <section id="workflow" className="py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06] overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <div className="mb-16">
             <PixelIcon type="workflow" size={40} />
-            <div className="mt-4"><Tag>WORKFLOW</Tag></div>
+            <div className="mt-4"><Tag>HOW TRACEWISE WORKS</Tag></div>
             <RevealText className="mt-5 text-4xl md:text-5xl font-light tracking-tight leading-[1.05]">
-              {"From idea to running agent\nin four steps."}
+              {"From noisy signal to\nresolved incident."}
             </RevealText>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3" onMouseMove={handleMouse}>
             {[
-              { n: "01", title: "Define",  desc: "Describe your agent in plain language. Set objectives, tools, and boundaries.", delay: 0,   img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/define-5aafAmGBrxZpOqJ3XLHY3n3qzC2I5K.png" },
-              { n: "02", title: "Compose", desc: "Chain agents together in the visual editor. Wire triggers, conditions, and outputs.", delay: 80,  img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/compose-5RT5VR4f1Y3GoFmovqTKLTG4UXp3g2.png" },
-              { n: "03", title: "Test",    desc: "Run sandboxed simulations. Inspect every decision in the execution trace.", delay: 140, img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/test-zm8guZwxJHtwWsJ7XO4B0CF7GzlNK8.png" },
-              { n: "04", title: "Deploy",  desc: "Push globally in one click. Agents auto-scale, self-heal, and report back.", delay: 200, img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/deploy-an8fgHSLzniojkcmRyGGIFQUJF9T5J.png" },
+              { n: "01", title: "Collect", desc: "Bring traces, logs, and events into one clean investigative timeline.", delay: 0, img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/define-5aafAmGBrxZpOqJ3XLHY3n3qzC2I5K.png" },
+              { n: "02", title: "Correlate", desc: "Connect related signals across services, deploys, and user sessions.", delay: 80, img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/compose-5RT5VR4f1Y3GoFmovqTKLTG4UXp3g2.png" },
+              { n: "03", title: "Investigate", desc: "Ask questions in plain language and inspect the exact evidence behind every answer.", delay: 140, img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/test-zm8guZwxJHtwWsJ7XO4B0CF7GzlNK8.png" },
+              { n: "04", title: "Resolve", desc: "Share a clear root cause, ship the fix, and verify recovery in real time.", delay: 200, img: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/deploy-an8fgHSLzniojkcmRyGGIFQUJF9T5J.png" },
             ].map((step) => (
               <BentoCard key={step.n} className="relative overflow-hidden flex flex-col min-h-[320px]" delay={step.delay}>
                 {/* Image at top — mask fades it out strongly before the bottom edge */}
@@ -318,6 +320,21 @@ export default function AgenticPage() {
         </div>
       </section>
 
+      {/* ── INVESTIGATION DASHBOARD ──────────────────────────────────────── */}
+      <section id="investigations" className="py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06] overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-16">
+            <PixelIcon type="platform" size={40} />
+            <div className="mt-4"><Tag>ERROR INVESTIGATION DASHBOARD</Tag></div>
+            <RevealText className="mt-5 text-4xl md:text-5xl font-light tracking-tight leading-[1.05]">
+              {"One timeline.\nEvery answer."}
+            </RevealText>
+            <p className="mt-6 max-w-md text-sm leading-relaxed text-black/45">Tracewise turns a scattered production incident into a living, queryable investigation. Follow the evidence from first alert to verified recovery.</p>
+          </div>
+          <AgentInterface revealDelay={200} />
+        </div>
+      </section>
+
       {/* ── INTEGRATIONS ──────────────────────────────────────────────────── */}
       <section id="integrations" className="py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06]">
         <div className="max-w-6xl mx-auto">
@@ -330,8 +347,13 @@ export default function AgenticPage() {
               </RevealText>
             </div>
             <p className="text-sm text-black/45 leading-relaxed max-w-xs">
-              200+ native connectors. Everything from Slack to your internal database. Build custom tools with our SDK in minutes.
+              Connect the tools your team already trusts. Tracewise brings telemetry, code, and collaboration into the same investigation surface.
             </p>
+          </div>
+          <div className="mb-12 flex flex-wrap gap-2">
+            {["OpenTelemetry", "Sentry", "Datadog", "Grafana", "GitHub", "Slack", "PagerDuty", "Postgres"].map((integration) => (
+              <span key={integration} className="rounded-full border border-black/10 bg-white/55 px-4 py-2 text-xs tracking-wide text-black/55 transition-colors hover:border-black/25 hover:text-black">{integration}</span>
+            ))}
           </div>
 
           {/* Full-width image block with glass cards */}
@@ -506,16 +528,16 @@ export default function AgenticPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             <div>
               <PixelIcon type="agents" size={40} />
-              <div className="mt-4"><Tag>LIVE RIGHT NOW</Tag></div>
+              <div className="mt-4"><Tag>LIVE INVESTIGATION FEED</Tag></div>
               <RevealText className="mt-5 text-4xl md:text-5xl lg:text-6xl font-light tracking-tight leading-[1.05]">
-                {"Agents working\n24 / 7, autonomously."}
+                {"Incidents moving\nfrom alert to answer."}
               </RevealText>
               <p className="mt-6 text-base text-black/40 leading-relaxed max-w-sm">
-                At any moment, thousands of agents are running tasks on behalf of teams around the world — no human in the loop.
+                Watch every investigation evolve in real time. Tracewise keeps responders aligned with the same evidence, context, and next best action.
               </p>
               <div className="mt-10 flex items-end gap-2">
                 <LiveAgentCounter />
-                <span className="text-black/30 text-sm mb-1 tracking-wide">agents active globally</span>
+                <span className="text-black/30 text-sm mb-1 tracking-wide">signals correlated now</span>
               </div>
             </div>
             <div className="relative">
@@ -525,74 +547,17 @@ export default function AgenticPage() {
         </div>
       </section>
 
-      {/* ── PRICING ───────────────────────────────────���────������─────────────── */}
+      {/* ── PRICING ─────────────────────────────────────────────────────────── */}
       <section id="pricing" className="py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06]">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16 flex flex-col items-center">
-            <PixelIcon type="pricing" size={40} />
-            <div className="mt-4"><Tag>PRICING</Tag></div>
-            <RevealText className="mt-5 text-4xl md:text-5xl font-light tracking-tight leading-[1.05]">
-              {"Pay as your agents grow."}
-            </RevealText>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3" onMouseMove={handleMouse}>
-            {[
-              {
-                name: "Sandbox",
-                price: "Free",
-                sub: "Start experimenting",
-                features: ["5 agents", "1,000 tasks/mo", "Community support", "Basic traces"],
-                delay: 0,
-              },
-              {
-                name: "Builder",
-                price: "$49",
-                period: "/mo",
-                sub: "For teams shipping fast",
-                features: ["50 agents", "100K tasks/mo", "Priority support", "Full traces + replay", "Custom tools", "REST API"],
-                highlight: true,
-                delay: 80,
-              },
-              {
-                name: "Enterprise",
-                price: "Custom",
-                sub: "For orgs at scale",
-                features: ["Unlimited agents", "Unlimited tasks", "Dedicated infra", "SOC 2 / HIPAA", "SLA guarantees", "Custom contracts"],
-                delay: 140,
-              },
-            ].map((plan) => (
-              <BentoCard
-                key={plan.name}
-                className={`p-8 flex flex-col ${plan.highlight ? "border-black/20 bg-[#F0EEE8]" : ""}`}
-                delay={plan.delay}
-              >
-                <div className="mb-8">
-                  <div className="font-pixel text-[11px] tracking-widest text-black/40 mb-4">{plan.name}</div>
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-4xl font-light">{plan.price}</span>
-                    {plan.period && <span className="text-black/40 text-sm">{plan.period}</span>}
-                  </div>
-                  <p className="text-xs text-black/35 tracking-wide">{plan.sub}</p>
-                </div>
-                <ul className="space-y-3 flex-1 mb-8">
-                  {plan.features.map(f => (
-                    <li key={f} className="flex items-center gap-3 text-sm text-black/55">
-                      <div className="w-1 h-1 rounded-full bg-black/25 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <button className={`w-full py-3 rounded-xl text-sm tracking-widest transition-all duration-200 ${
-                  plan.highlight
-                    ? "bg-[#111] text-white hover:bg-[#333]"
-                    : "border border-black/10 text-black/60 hover:border-black/25 hover:text-black hover:bg-black/[0.04]"
-                }`}>
-                  {plan.name === "Enterprise" ? "CONTACT SALES" : "GET STARTED"}
-                </button>
-              </BentoCard>
-            ))}
-          </div>
+        <div className="max-w-3xl mx-auto text-center">
+          <PixelIcon type="pricing" size={40} />
+          <div className="mt-4"><Tag>PRICING</Tag></div>
+          <RevealText className="mt-5 text-4xl md:text-5xl font-light tracking-tight leading-[1.05]">
+            {"Get Started in 60 Seconds"}
+          </RevealText>
+          <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-black/45">Connect your first source, ask your first question, and give your team a shared place to understand what happened.</p>
+          <a href="/signup" className="mt-10 inline-flex rounded-xl bg-[#111] px-7 py-4 text-xs tracking-widest text-white transition-colors hover:bg-black/75">GET STARTED IN 60 SECONDS</a>
+          <p className="mt-5 text-xs tracking-wide text-black/30">No credit card required · Bring your existing observability stack</p>
         </div>
       </section>
 
@@ -625,37 +590,12 @@ export default function AgenticPage() {
         />
         <div className="relative z-10 max-w-2xl mx-auto text-center">
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-light tracking-tight leading-[1.05] mb-6">
-            Start building your<br />agent workforce.
+            Make the next<br />incident the last.
           </h2>
           <p className="text-sm text-black/45 leading-relaxed mb-10">
-            Join thousands of teams deploying AI agents that work around the clock, across every timezone.
+            Give your team the context to move from alert fatigue to confident resolution.
           </p>
-          {!submitted ? (
-            <form
-              onSubmit={e => { e.preventDefault(); if (email) setSubmitted(true) }}
-              className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto"
-            >
-              <input
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                className="flex-1 bg-white border border-black/10 rounded-xl px-4 py-3 text-sm text-[#111] placeholder:text-black/25 focus:outline-none focus:border-black/25 transition-colors"
-              />
-              <button
-                type="submit"
-                className="px-8 py-3 bg-[#111] text-white text-sm rounded-xl hover:bg-[#333] transition-colors tracking-widest font-medium"
-              >
-                JOIN
-              </button>
-            </form>
-          ) : (
-            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-emerald-600/20 bg-emerald-50 text-emerald-700 text-sm">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              {"You're on the list. We'll be in touch."}
-            </div>
-          )}
+          <a href="/signup" className="inline-flex rounded-xl bg-[#111] px-8 py-4 text-sm tracking-widest text-white transition-colors hover:bg-[#333]">GET API ACCESS</a>
         </div>
       </section>
 
@@ -663,17 +603,19 @@ export default function AgenticPage() {
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer className="py-10 px-6 md:px-12 lg:px-20 border-t border-black/[0.06]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-          <span className="font-pixel text-xs tracking-[0.25em] text-black/50">AGENTIC</span>
+          <div>
+            <span className="font-pixel text-xs tracking-[0.25em] text-black/50">TRACEWISE</span>
+            <p className="mt-2 text-xs text-black/25">Understand what happened. Fix what matters.</p>
+          </div>
 
           {/* Nav sections */}
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
             {[
-              { label: "Platform",     href: "#platform" },
-              { label: "Agents",       href: "#agents" },
-              { label: "Workflow",     href: "#workflow" },
+              { label: "How it works", href: "#workflow" },
               { label: "Integrations", href: "#integrations" },
-              { label: "Live",         href: "#live" },
-              { label: "Pricing",      href: "#pricing" },
+              { label: "Investigations", href: "#investigations" },
+              { label: "Live feed", href: "#live" },
+              { label: "Pricing", href: "#pricing" },
             ].map(l => (
               <a key={l.label} href={l.href} className="text-xs text-black/35 hover:text-black/70 transition-colors tracking-widest">{l.label}</a>
             ))}
@@ -692,7 +634,7 @@ export default function AgenticPage() {
           </div>
         </div>
         <div className="max-w-6xl mx-auto mt-8 pt-6 border-t border-black/[0.04]">
-          <span className="text-xs text-black/20">© 2026 Agentic. All rights reserved.</span>
+          <span className="text-xs text-black/20">© 2026 Tracewise. Built for calm incident response.</span>
         </div>
       </footer>
     </div>

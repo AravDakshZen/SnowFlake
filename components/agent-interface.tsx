@@ -451,7 +451,7 @@ export function AgentInterface({ revealDelay = 0 }: { revealDelay?: number }) {
 
   return (
     <div
-      className="relative z-10 flex items-center justify-center pointer-events-none select-none px-3 md:px-8 w-full md:absolute md:inset-0 md:pt-[220px] md:pb-[8%]"
+      className="relative z-10 flex items-center justify-center pointer-events-none select-none px-0 w-full"
       style={{ paddingTop: "16px", paddingBottom: "16px" }}
     >
       <div style={{
