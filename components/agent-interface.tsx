@@ -47,9 +47,9 @@ const COMMITS = [
 ]
 
 // Activity graph data — 7 cols x 5 rows like GitHub contributions
-const ACTIVITY_SEED = Array.from({ length: 35 }, () => ({
-  level: Math.random() > 0.4 ? Math.floor(Math.random() * 4) + 1 : 0,
-}))
+const ACTIVITY_SEED = [
+  0, 2, 1, 3, 0, 4, 2, 1, 0, 3, 2, 4, 1, 0, 2, 3, 1, 4, 0, 2, 3, 1, 0, 4, 2, 1, 3, 0, 2, 4, 1, 3, 0, 2, 1,
+].map((level) => ({ level }))
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -309,10 +309,10 @@ function HeatCell({ level, animDelay }: { level: number; animDelay: number }) {
   const colors = ["rgba(0,0,0,0.05)", "rgba(0,0,0,0.15)", "rgba(0,0,0,0.32)", "rgba(0,0,0,0.55)", "rgba(0,0,0,0.8)"]
   return (
     <div style={{
-      width: 9, height: 9, borderRadius: 2,
+      width: "9px", height: "9px", borderRadius: "2px",
       background: colors[level],
-      opacity: visible ? 1 : 0,
-      transition: `opacity 0.4s ease`,
+      opacity: visible ? "1" : "0",
+      transition: "opacity 0.4s ease",
     }} />
   )
 }
