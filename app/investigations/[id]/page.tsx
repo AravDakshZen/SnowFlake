@@ -1,21 +1,27 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import useSWR from 'swr'
 import { RevealText } from '@/components/reveal-text'
-
-const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function InvestigationDetailPage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const [investigation, setInvestigation] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const { data: investigation, isLoading } = useSWR(
-    id ? `/api/investigations/${id}` : null,
-    fetcher
-  )
+  useEffect(() => {
+    if (id) {
+      fetch(`/api/investigations/${id}`)
+        .then(res => res.json())
+        .then(data => {
+          setInvestigation(data)
+          setIsLoading(false)
+        })
+        .catch(() => setIsLoading(false))
+    }
+  }, [id])
 
   if (isLoading) {
     return (

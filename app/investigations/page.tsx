@@ -1,18 +1,25 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import useSWR from 'swr'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
-
-const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function InvestigationsPage() {
   const router = useRouter()
   const [filter, setFilter] = useState('all')
-  
-  const { data: investigations, isLoading } = useSWR('/api/investigations', fetcher)
+  const [investigations, setInvestigations] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/investigations')
+      .then(res => res.json())
+      .then(data => {
+        setInvestigations(data)
+        setIsLoading(false)
+      })
+      .catch(() => setIsLoading(false))
+  }, [])
 
   const filtered = investigations?.data?.filter((inv: any) => {
     if (filter === 'all') return true

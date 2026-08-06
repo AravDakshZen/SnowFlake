@@ -2,22 +2,48 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import useSWR from 'swr'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
-
-const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function DashboardPage() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  
-  const { data: stats, isLoading: statsLoading } = useSWR('/api/stats', fetcher)
-  const { data: clusters, isLoading: clustersLoading } = useSWR('/api/clusters', fetcher)
-  const { data: investigations, isLoading: investigationsLoading } = useSWR('/api/investigations', fetcher)
+  const [stats, setStats] = useState<any>(null)
+  const [clusters, setClusters] = useState<any>(null)
+  const [investigations, setInvestigations] = useState<any>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [clustersLoading, setClustersLoading] = useState(true)
+  const [investigationsLoading, setInvestigationsLoading] = useState(true)
 
   useEffect(() => {
     setMounted(true)
+    
+    // Fetch stats
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(data => {
+        setStats(data)
+        setStatsLoading(false)
+      })
+      .catch(() => setStatsLoading(false))
+    
+    // Fetch clusters
+    fetch('/api/clusters')
+      .then(res => res.json())
+      .then(data => {
+        setClusters(data)
+        setClustersLoading(false)
+      })
+      .catch(() => setClustersLoading(false))
+    
+    // Fetch investigations
+    fetch('/api/investigations')
+      .then(res => res.json())
+      .then(data => {
+        setInvestigations(data)
+        setInvestigationsLoading(false)
+      })
+      .catch(() => setInvestigationsLoading(false))
   }, [])
 
   if (!mounted) return null

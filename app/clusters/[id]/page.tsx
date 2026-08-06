@@ -1,20 +1,26 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import useSWR from 'swr'
-
-const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function ClusterDetailPage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const [cluster, setCluster] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const { data: cluster, isLoading } = useSWR(
-    id ? `/api/clusters?id=${id}` : null,
-    fetcher
-  )
+  useEffect(() => {
+    if (id) {
+      fetch(`/api/clusters?id=${id}`)
+        .then(res => res.json())
+        .then(data => {
+          setCluster(data)
+          setIsLoading(false)
+        })
+        .catch(() => setIsLoading(false))
+    }
+  }, [id])
 
   const clusterData = cluster?.data?.[0]
 

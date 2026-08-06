@@ -1,22 +1,27 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import useSWR from 'swr'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
-
-const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function SettingsPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('llm')
   const [loading, setLoading] = useState(false)
-  
-  const { data: llmConfigs } = useSWR('/api/settings/llm', fetcher)
-  const { data: alertConfigs } = useSWR('/api/settings/alerts', fetcher)
-  const { data: githubConfigs } = useSWR('/api/github/repos', fetcher)
-  const { data: apiKey } = useSWR('/api/project/apikey', fetcher)
+  const [llmConfigs, setLLMConfigs] = useState<any>(null)
+  const [alertConfigs, setAlertConfigs] = useState<any>(null)
+  const [githubConfigs, setGithubConfigs] = useState<any>(null)
+  const [apiKey, setApiKey] = useState<any>(null)
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/settings/llm').then(r => r.json()).then(d => setLLMConfigs(d)),
+      fetch('/api/settings/alerts').then(r => r.json()).then(d => setAlertConfigs(d)),
+      fetch('/api/github/repos').then(r => r.json()).then(d => setGithubConfigs(d)),
+      fetch('/api/project/apikey').then(r => r.json()).then(d => setApiKey(d)),
+    ]).catch(() => {})
+  }, [])
 
   const handleLLMSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

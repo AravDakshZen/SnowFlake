@@ -1,19 +1,26 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import useSWR from 'swr'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
-
-const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function ClustersPage() {
   const router = useRouter()
   const [sortBy, setSortBy] = useState('recent')
   const [filterStatus, setFilterStatus] = useState('all')
-  
-  const { data: clusters, isLoading } = useSWR('/api/clusters', fetcher)
+  const [clusters, setClusters] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/clusters')
+      .then(res => res.json())
+      .then(data => {
+        setClusters(data)
+        setIsLoading(false)
+      })
+      .catch(() => setIsLoading(false))
+  }, [])
 
   const filtered = clusters?.data?.filter((c: any) => {
     if (filterStatus === 'all') return true
