@@ -1,0 +1,49 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Github, Chrome, Loader2 } from 'lucide-react'
+import { AuthShell } from '@/components/auth-shell'
+
+export default function SignInPage() {
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSignIn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const response = await fetch('/api/auth/signin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Invalid email or password')
+      router.replace('/dashboard')
+      router.refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to sign in')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <AuthShell eyebrow="Welcome back" title="Sign in to Tracewise" description="Your production signal is waiting. Continue to the reliability workspace.">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <a href="/api/auth/oauth?provider=github" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><Github className="size-4" /> GitHub</a>
+        <a href="/api/auth/oauth?provider=google" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><Chrome className="size-4" /> Google</a>
+      </div>
+      <div className="my-7 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /><span>OR CONTINUE WITH EMAIL</span><span className="h-px flex-1 bg-border" /></div>
+      <form onSubmit={handleSignIn} className="flex flex-col gap-4">
+        {error && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+        <label className="flex flex-col gap-2 text-sm font-medium">Email<input className="h-12 rounded-xl border border-border bg-background px-4 outline-none transition placeholder:text-muted-foreground focus:border-foreground focus:ring-2 focus:ring-foreground/10" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" required /></label>
+        <label className="flex flex-col gap-2 text-sm font-medium">Password<input className="h-12 rounded-xl border border-border bg-background px-4 outline-none transition placeholder:text-muted-foreground focus:border-foreground focus:ring-2 focus:ring-foreground/10" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required /></label>
+        <div className="flex justify-end"><Link href="/forgot-password" className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Forgot password?</Link></div>
+        <button className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60" disabled={loading}>{loading && <Loader2 className="size-4 animate-spin" />} {loading ? 'Signing in' : 'Sign in'}</button>
+      </form>
+      <p className="mt-7 text-center text-sm text-muted-foreground">New to Tracewise? <Link href="/signup" className="font-semibold text-foreground underline-offset-4 hover:underline">Create an account</Link></p>
+    </AuthShell>
+  )
+}

@@ -11,21 +11,21 @@ const _courierPrime = Courier_Prime({ weight: ["400", "700"], subsets: ["latin"]
 const _ibmPlexSans = IBM_Plex_Sans({ weight: ["300", "400", "500", "600"], subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Tracewise — From Alert to Answer',
-  description: 'Tracewise helps engineering teams understand production incidents, correlate every signal, and resolve issues with confidence.',
-  keywords: ['observability', 'incident response', 'error investigation', 'distributed tracing', 'root cause analysis'],
-  authors: [{ name: 'Tracewise' }],
+  title: 'Snowflake — Error Detection & Automatic Fixes',
+  description: 'Snowflake helps engineering teams detect errors, analyze root causes, and automatically generate fixes with AI.',
+  keywords: ['error analysis', 'incident response', 'error investigation', 'root cause analysis', 'automated fixes', 'AI debugging'],
+  authors: [{ name: 'Snowflake' }],
   openGraph: {
-    title: 'Tracewise — From Alert to Answer',
-    description: 'Understand production incidents, correlate every signal, and resolve issues with confidence.',
+    title: 'Snowflake — Error Detection & Automatic Fixes',
+    description: 'Detect errors, analyze root causes, and automatically generate fixes with AI.',
     type: 'website',
-    url: 'https://tracewise.dev',
-    siteName: 'Tracewise',
+    url: 'https://snowflake.app',
+    siteName: 'Snowflake',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Tracewise — From Alert to Answer',
-    description: 'Understand production incidents, correlate every signal, and resolve issues with confidence.',
+    title: 'Snowflake — Error Detection & Automatic Fixes',
+    description: 'Detect errors, analyze root causes, and automatically generate fixes with AI.',
   },
   icons: {
     icon: [
