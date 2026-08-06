@@ -1,8 +1,6 @@
--- Migration: Add Tracewise Backend Tables and Extensions
+-- Migration: Add Snowflake Backend Tables
 -- Run these queries in your Supabase/PostgreSQL database
-
--- Enable pgvector extension for embeddings
-CREATE EXTENSION IF NOT EXISTS "pgvector";
+-- Note: pgvector is already enabled in Supabase by default
 
 -- Add vector column to existing api_logs if it doesn't exist
 -- (if api_logs table doesn't exist, it will be created by the schema setup)

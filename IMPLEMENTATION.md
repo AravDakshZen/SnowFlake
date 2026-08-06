@@ -1,4 +1,4 @@
-# Tracewise Backend Implementation
+# Snowflake Backend Implementation
 
 ## ✅ Completed Implementation
 
@@ -51,7 +51,7 @@ Each provider implements:
 #### GitHub Integration (`lib/github.ts`)
 - `GitHubClient` class wrapping Octokit
 - File fetching, branch creation, commits, PR creation
-- PR labeling with "tracewise-auto-fix"
+- PR labeling with "snowflake-auto-fix"
 - Webhook registration
 
 #### Queue System (`lib/queue.ts`)
@@ -104,11 +104,11 @@ Each provider implements:
 #### GitHub Integration (`/api/github`)
 - **POST** `/pr` - Create PR from investigation results
   - Creates branch, commits patch, opens PR with full context
-  - Auto-labels with "tracewise-auto-fix"
+  - Auto-labels with "snowflake-auto-fix"
 - **GET** `/repos` - List accessible repositories
 - **POST** `/repos` - Connect specific repo
 - **POST** `/webhook` - Handle GitHub webhooks
-  - Detects CI failures on Tracewise branches
+  - Detects CI failures on Snowflake branches
   - Triggers re-investigation (max 3 attempts)
 
 #### Alert Configuration (`/api/settings/alerts`)
@@ -118,7 +118,7 @@ Each provider implements:
 #### Project API Keys (`/api/project/apikey`)
 - **GET** - Fetch masked API key
 - **POST** - Generate/regenerate API key
-- Format: `tw_live_XXXX...` (hex)
+- Format: `sf_live_XXXX...` (hex for Snowflake)
 
 ### 4. Background Worker (`workers/investigation.worker.ts`)
 
@@ -237,7 +237,7 @@ The following components need to be built/connected:
 ### Ingest a Log
 ```bash
 curl -X POST http://localhost:3000/api/logs \
-  -H "Authorization: Bearer tw_live_..." \
+  -H "Authorization: Bearer sf_live_..." \
   -H "Content-Type: application/json" \
   -d '{
     "endpoint": "/api/users",

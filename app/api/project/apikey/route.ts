@@ -5,7 +5,7 @@ import crypto from 'crypto';
 
 function generateApiKey(): string {
   const random = crypto.randomBytes(32).toString('hex');
-  return `tw_live_${random}`;
+  return `sf_live_${random}`;
 }
 
 function maskApiKey(apiKey: string): string {
