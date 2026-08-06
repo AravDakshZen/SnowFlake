@@ -1,5 +1,6 @@
 import { Server as HTTPServer } from 'http'
 import { Server, Socket } from 'socket.io'
+import { emitProjectEvent } from '@/lib/events'
 
 let io: Server | null = null
 
@@ -38,7 +39,8 @@ export function getSocket(): Server {
   return io
 }
 
-export function emitToProject(projectId: string, event: string, data: any) {
+export function emitToProject(projectId: string, event: string, data: Record<string, unknown> = {}) {
+  emitProjectEvent(projectId, event, data)
   if (io) {
     io.to(`project:${projectId}`).emit(event, data)
   }

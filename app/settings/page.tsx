@@ -132,7 +132,11 @@ export default function SettingsPage() {
             
             <form onSubmit={handleLLMSubmit} className="space-y-6">
               <div>
-                <label className="block text-xs tracking-widest text-black/40 mb-2">PROVIDER</label>
+                <label className="mb-2 block text-xs tracking-widest text-black/40">PROVIDER</label>
+                <div className="mb-3 flex items-center gap-3 rounded-xl border border-black/[0.07] bg-white px-4 py-3">
+                  <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-lg bg-black text-xs font-semibold tracking-tight text-white">{selectedProviderDefinition.icon}</span>
+                  <div className="min-w-0"><p className="text-sm font-medium">{selectedProviderDefinition.name}</p><p className="truncate text-xs text-black/45">Provider brand and available model catalog</p></div>
+                </div>
                 <select name="provider" value={selectedProvider} onChange={(event) => setSelectedProvider(event.target.value)} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
                   {Object.values(PROVIDERS).map((provider) => <option key={provider.id} value={provider.id}>{provider.icon}  {provider.name}</option>)}
                 </select>
