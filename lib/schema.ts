@@ -135,10 +135,21 @@ create table if not exists public.investigations (
   cluster_id uuid not null references public.clusters(id) on delete cascade,
   project_id uuid not null references public.projects(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
+  log_id uuid,
+  parent_investigation_id uuid references public.investigations(id) on delete set null,
   question text not null,
   summary text,
   root_cause text,
+  affected_file text,
+  affected_line integer,
+  patch_diff text,
+  confidence integer default 0,
+  fix_strategy text,
+  explanation text,
   status text not null default 'in_progress',
+  pr_url text,
+  pr_number integer,
+  attempt integer default 1,
   created_at timestamptz not null default now(),
   resolved_at timestamptz
 );
@@ -158,5 +169,116 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 do $$ begin
   create policy "investigations_delete_own" on public.investigations for delete using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+
+-- API logs with vector embeddings for error fingerprinting -----------------
+create extension if not exists "vector";
+
+create table if not exists public.api_logs (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  cluster_id uuid references public.clusters(id) on delete set null,
+  investigation_id uuid references public.investigations(id) on delete set null,
+  endpoint text not null,
+  method text not null,
+  status_code integer not null,
+  stack_trace text not null,
+  request_body jsonb,
+  response_body jsonb,
+  embedding vector(1536),
+  created_at timestamptz not null default now()
+);
+create index if not exists api_logs_project_idx on public.api_logs(project_id);
+create index if not exists api_logs_cluster_idx on public.api_logs(cluster_id);
+create index if not exists api_logs_embedding_idx on public.api_logs using ivfflat (embedding vector_cosine_ops);
+
+alter table public.api_logs enable row level security;
+
+do $$ begin
+  create policy "api_logs_select_own" on public.api_logs for select using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "api_logs_insert_own" on public.api_logs for insert with check (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+
+-- LLM Configuration --------------------------------------------------------
+create table if not exists public.llm_configs (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  provider text not null,
+  model text not null,
+  encrypted_key text not null,
+  base_url text,
+  created_at timestamptz not null default now(),
+  unique (project_id, provider)
+);
+create index if not exists llm_configs_project_idx on public.llm_configs(project_id);
+
+alter table public.llm_configs enable row level security;
+
+do $$ begin
+  create policy "llm_configs_select_own" on public.llm_configs for select using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "llm_configs_insert_own" on public.llm_configs for insert with check (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "llm_configs_update_own" on public.llm_configs for update using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "llm_configs_delete_own" on public.llm_configs for delete using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+
+-- GitHub Configuration ------------------------------------------------------
+create table if not exists public.github_configs (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  repo_owner text not null,
+  repo_name text not null,
+  default_branch text not null,
+  encrypted_token text not null,
+  webhook_id text,
+  created_at timestamptz not null default now(),
+  unique (project_id)
+);
+create index if not exists github_configs_project_idx on public.github_configs(project_id);
+
+alter table public.github_configs enable row level security;
+
+do $$ begin
+  create policy "github_configs_select_own" on public.github_configs for select using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "github_configs_insert_own" on public.github_configs for insert with check (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "github_configs_update_own" on public.github_configs for update using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+
+-- Alert Configuration -------------------------------------------------------
+create table if not exists public.alert_configs (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  slack_webhook_url text,
+  email_address text,
+  alert_on text[] not null default '{}',
+  created_at timestamptz not null default now()
+);
+create index if not exists alert_configs_project_idx on public.alert_configs(project_id);
+
+alter table public.alert_configs enable row level security;
+
+do $$ begin
+  create policy "alert_configs_select_own" on public.alert_configs for select using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "alert_configs_insert_own" on public.alert_configs for insert with check (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "alert_configs_update_own" on public.alert_configs for update using (auth.uid() = user_id);
 exception when duplicate_object then null; end $$;
 `
