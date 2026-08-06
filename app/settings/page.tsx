@@ -130,11 +130,14 @@ export default function SettingsPage() {
               <div>
                 <label className="block text-xs tracking-widest text-black/40 mb-2">PROVIDER</label>
                 <select name="provider" required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
-                  <option>openai</option>
-                  <option>anthropic</option>
-                  <option>google</option>
-                  <option>groq</option>
-                  <option>openrouter</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="gemini">Google Gemini</option>
+                  <option value="groq">Groq</option>
+                  <option value="nvidia">NVIDIA</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="together">Together AI</option>
+                  <option value="ollama">Ollama (Local)</option>
                 </select>
               </div>
 
