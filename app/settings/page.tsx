@@ -200,7 +200,7 @@ export default function SettingsPage() {
               <p className="text-sm text-black/60 mb-4">
                 Connect your GitHub account to enable automatic PR creation and CI integration.
               </p>
-              <button className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors">
+              <button onClick={async () => { const project = await fetch('/api/project/current').then((response) => response.json()); if (project.project?.id) window.location.href = `/api/github/connect?projectId=${encodeURIComponent(project.project.id)}` }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors">
                 CONNECT GITHUB
               </button>
             </div>

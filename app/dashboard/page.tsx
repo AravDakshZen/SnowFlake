@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
+import { DashboardLiveFeed } from '@/components/dashboard-live-feed'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -14,36 +15,39 @@ export default function DashboardPage() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [clustersLoading, setClustersLoading] = useState(true)
   const [investigationsLoading, setInvestigationsLoading] = useState(true)
+  const [projectId, setProjectId] = useState<string>()
 
   useEffect(() => {
     setMounted(true)
     
-    // Fetch stats
-    fetch('/api/stats')
+    fetch('/api/project/current').then(res => res.json()).then(data => setProjectId(data.project?.id)).catch(() => {})
+
+    fetch('/api/project/current')
       .then(res => res.json())
       .then(data => {
-        setStats(data)
+        const id = data.project?.id as string | undefined
+        setProjectId(id)
+        if (!id) return
+        const query = `?projectId=${encodeURIComponent(id)}`
+        Promise.all([
+          fetch(`/api/stats${query}`).then(res => res.json()),
+          fetch(`/api/clusters${query}`).then(res => res.json()),
+          fetch(`/api/investigations${query}`).then(res => res.json()),
+        ]).then(([nextStats, nextClusters, nextInvestigations]) => {
+          setStats(nextStats)
+          setClusters(nextClusters)
+          setInvestigations(nextInvestigations)
+        }).finally(() => {
+          setStatsLoading(false)
+          setClustersLoading(false)
+          setInvestigationsLoading(false)
+        })
+      })
+      .catch(() => {
         setStatsLoading(false)
-      })
-      .catch(() => setStatsLoading(false))
-    
-    // Fetch clusters
-    fetch('/api/clusters')
-      .then(res => res.json())
-      .then(data => {
-        setClusters(data)
         setClustersLoading(false)
-      })
-      .catch(() => setClustersLoading(false))
-    
-    // Fetch investigations
-    fetch('/api/investigations')
-      .then(res => res.json())
-      .then(data => {
-        setInvestigations(data)
         setInvestigationsLoading(false)
       })
-      .catch(() => setInvestigationsLoading(false))
   }, [])
 
   if (!mounted) return null
@@ -142,8 +146,10 @@ export default function DashboardPage() {
           )}
         </section>
 
+        <DashboardLiveFeed projectId={projectId} />
+
         {/* Recent Investigations */}
-        <section>
+        <section className="mt-16">
           <div className="flex items-center justify-between mb-8">
             <RevealText className="text-3xl md:text-4xl font-light tracking-tight">
               Recent Investigations
