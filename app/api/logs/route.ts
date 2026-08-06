@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate API key
-    const auth = await validateApiKey(payload.projectId, authHeader);
+    const auth = await validateApiKey(payload.projectId, authHeader ?? undefined);
     if (!auth.valid || !auth.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -189,6 +189,7 @@ export async function POST(request: NextRequest) {
     `;
 
     const logId = logResult[0].id;
+    if (!clusterId) throw new Error('Failed to create an error cluster')
 
     // Queue investigation if not a duplicate and status code >= 400
     let investigationId: string | null = null;

@@ -1,16 +1,16 @@
 import crypto from 'crypto';
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-
-if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
-  throw new Error('ENCRYPTION_KEY must be set and be exactly 32 characters');
+function getEncryptionKey(): string {
+  const key = process.env.ENCRYPTION_KEY
+  if (!key || key.length !== 32) throw new Error('ENCRYPTION_KEY must be set and be exactly 32 characters')
+  return key
 }
 
 export function encryptValue(value: string): string {
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv(
     'aes-256-gcm',
-    Buffer.from(ENCRYPTION_KEY),
+    Buffer.from(getEncryptionKey()),
     iv
   );
 
@@ -28,7 +28,7 @@ export function decryptValue(encrypted: string): string {
 
   const decipher = crypto.createDecipheriv(
     'aes-256-gcm',
-    Buffer.from(ENCRYPTION_KEY),
+    Buffer.from(getEncryptionKey()),
     iv
   );
 

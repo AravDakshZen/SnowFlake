@@ -1,4 +1,4 @@
-import { prisma } from './db'
+import { getSql } from './db'
 
 export type AuditAction =
   | 'log_ingested'
@@ -19,59 +19,42 @@ export async function logAudit(
   action: AuditAction,
   entityType?: string,
   entityId?: string,
-  metadata?: any,
-  userId?: string
+  metadata?: unknown,
+  userId?: string,
 ) {
   try {
-    await prisma.auditLog.create({
-      data: {
-        projectId,
-        action,
-        entityType,
-        entityId,
-        metadata,
-        userId,
-      },
-    })
+    const sql = getSql()
+    await sql`
+      INSERT INTO public.audit_logs (project_id, user_id, action, entity_type, entity_id, metadata)
+      VALUES (${projectId}, ${userId ?? null}, ${action}, ${entityType ?? null}, ${entityId ?? null}, ${metadata ? sql.json(JSON.parse(JSON.stringify(metadata))) : null})
+    `
   } catch (error) {
     console.error('[v0] Audit log error:', error)
   }
 }
 
-export async function getAuditLogs(
-  projectId: string,
-  filters?: {
-    action?: string
-    dateFrom?: Date
-    dateTo?: Date
-    limit?: number
-    offset?: number
-  }
-) {
-  const limit = filters?.limit || 50
-  const offset = filters?.offset || 0
-
-  const where: any = { projectId }
-
-  if (filters?.action) {
-    where.action = filters.action
-  }
-
-  if (filters?.dateFrom || filters?.dateTo) {
-    where.createdAt = {}
-    if (filters?.dateFrom) where.createdAt.gte = filters.dateFrom
-    if (filters?.dateTo) where.createdAt.lte = filters.dateTo
-  }
-
-  const [logs, total] = await Promise.all([
-    prisma.auditLog.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip: offset,
-      take: limit,
-    }),
-    prisma.auditLog.count({ where }),
-  ])
-
-  return { logs, total, hasMore: offset + limit < total }
+export async function getAuditLogs(projectId: string, filters?: {
+  action?: string
+  dateFrom?: Date
+  dateTo?: Date
+  limit?: number
+  offset?: number
+}) {
+  const sql = getSql()
+  const limit = Math.min(filters?.limit ?? 50, 100)
+  const offset = filters?.offset ?? 0
+  const rows = await sql`
+    SELECT id, project_id, user_id, action, entity_type, entity_id, metadata, created_at
+    FROM public.audit_logs
+    WHERE project_id = ${projectId}
+      AND (${filters?.action ?? null} IS NULL OR action = ${filters?.action ?? null})
+      AND (${filters?.dateFrom ?? null} IS NULL OR created_at >= ${filters?.dateFrom ?? null})
+      AND (${filters?.dateTo ?? null} IS NULL OR created_at <= ${filters?.dateTo ?? null})
+    ORDER BY created_at DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `
+  const [{ count }] = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM public.audit_logs WHERE project_id = ${projectId}
+  `
+  return { logs: rows, total: count, hasMore: offset + limit < count }
 }

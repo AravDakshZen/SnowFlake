@@ -6,8 +6,8 @@ export interface AnalysisResult {
   patchDiff: string
   confidence: number
   explanation: string
-  confidenceReasoning: string
-  fixStrategy: 'one_liner' | 'refactor' | 'dependency_update' | 'config_change'
+  confidenceReasoning?: string
+  fixStrategy: 'one_liner' | 'refactor' | 'dependency_update' | 'config_change' | 'one-liner' | 'dependency-update' | 'config-change'
 }
 
 export interface ProviderDefinition {

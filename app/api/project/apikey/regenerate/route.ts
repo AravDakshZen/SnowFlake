@@ -3,13 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import { logAudit } from '@/lib/audit'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.user?.id) {
       return NextResponse.json(

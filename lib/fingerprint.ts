@@ -1,7 +1,7 @@
 import { getSql } from './db';
 import crypto from 'crypto';
 
-export async function fingerprintStackTrace(stackTrace: string): string {
+export async function fingerprintStackTrace(stackTrace: string): Promise<string> {
   // Extract key information from stack trace for fingerprinting
   const lines = stackTrace.split('\n');
   const errorLine = lines[0] || '';
@@ -73,7 +73,7 @@ export async function getClusterSimilarErrors(
       LIMIT $2
     `;
 
-    const results = await sql(query, [clusterId, limit]);
+    const results = await sql.unsafe(query, [clusterId, limit]);
     return results;
   } catch (error) {
     console.error('[v0] Error fetching similar errors:', error);

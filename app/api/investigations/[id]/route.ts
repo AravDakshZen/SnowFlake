@@ -4,8 +4,9 @@ import { getSession } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getSession();
     if (!session?.user?.id) {
@@ -37,7 +38,7 @@ export async function GET(
       FROM public.investigations i
       LEFT JOIN public.api_logs al ON i.log_id = al.id
       LEFT JOIN public.clusters c ON i.cluster_id = c.id
-      WHERE i.id = ${params.id}
+      WHERE i.id = ${id}
       AND i.user_id = ${session.user.id}
       LIMIT 1
     `;
@@ -57,7 +58,7 @@ export async function GET(
         created_at,
         attempt
       FROM public.investigations
-      WHERE id = ${params.id} OR parent_investigation_id = ${params.id}
+      WHERE id = ${id} OR parent_investigation_id = ${id}
       ORDER BY attempt ASC
     `;
 
@@ -76,8 +77,9 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getSession();
     if (!session?.user?.id) {
@@ -90,7 +92,7 @@ export async function PATCH(
     // Verify ownership
     const invCheck = await sql`
       SELECT id FROM public.investigations
-      WHERE id = ${params.id} AND user_id = ${session.user.id}
+      WHERE id = ${id} AND user_id = ${session.user.id}
       LIMIT 1
     `;
 
@@ -102,7 +104,7 @@ export async function PATCH(
     const updated = await sql`
       UPDATE public.investigations
       SET status = ${body.status}
-      WHERE id = ${params.id}
+      WHERE id = ${id}
       RETURNING *
     `;
 

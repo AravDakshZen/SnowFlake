@@ -29,8 +29,11 @@ export class GitHubClient {
         throw new Error('Path is a directory');
       }
 
-      const content = Buffer.from(response.data.content, 'base64').toString('utf-8');
-      return { path, content };
+      if (response.data.type !== 'file' || typeof response.data.content !== 'string') {
+        throw new Error('Path is not a readable file')
+      }
+      const content = Buffer.from(response.data.content, 'base64').toString('utf-8')
+      return { path, content }
     } catch (error) {
       console.error(`[v0] Failed to fetch ${path}:`, error);
       throw error;
