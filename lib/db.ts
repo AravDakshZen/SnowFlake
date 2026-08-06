@@ -5,7 +5,7 @@ import postgres from "postgres"
 // connection for regular queries when available.
 declare global {
   // eslint-disable-next-line no-var
-  var __tracewise_sql__: ReturnType<typeof postgres> | undefined
+  var __snowflake_sql__: ReturnType<typeof postgres> | undefined
 }
 
 function resolveConnectionString() {
@@ -25,15 +25,15 @@ export function getSql() {
     )
   }
 
-  if (!globalThis.__tracewise_sql__) {
-    globalThis.__tracewise_sql__ = postgres(connectionString, {
+  if (!globalThis.__snowflake_sql__) {
+    globalThis.__snowflake_sql__ = postgres(connectionString, {
       max: 5,
       idle_timeout: 20,
       prepare: false,
     })
   }
 
-  return globalThis.__tracewise_sql__
+  return globalThis.__snowflake_sql__
 }
 
 export function getMigrationSql() {

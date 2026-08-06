@@ -38,8 +38,8 @@ async function handleWorkflowRun(payload: any) {
       return;
     }
 
-    // Check if this is a Tracewise branch
-    if (!workflow_run.head_branch.startsWith('tracewise/')) {
+    // Check if this is a Snowflake branch
+    if (!workflow_run.head_branch.startsWith('snowflake/')) {
       return;
     }
 
@@ -79,7 +79,7 @@ async function handleWorkflowRun(payload: any) {
       return;
     }
 
-    console.log(`[v0] CI failed for Tracewise fix, re-investigating (attempt ${attempt})`);
+    console.log(`[v0] CI failed for Snowflake fix, re-investigating (attempt ${attempt})`);
 
     // Queue new investigation
     await queueInvestigation({

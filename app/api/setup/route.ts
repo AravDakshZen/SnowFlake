@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { getMigrationSql } from "@/lib/db"
 import { SCHEMA_SQL } from "@/lib/schema"
 
-// Applies the Tracewise schema. Idempotent — safe to run multiple times.
+// Applies the Snowflake schema. Idempotent — safe to run multiple times.
 // Only runnable by an authenticated user to avoid abuse.
 export async function POST() {
   const sql = getMigrationSql()

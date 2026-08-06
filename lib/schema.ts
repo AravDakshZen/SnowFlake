@@ -1,4 +1,4 @@
-// Idempotent schema definition for Tracewise.
+// Idempotent schema definition for Snowflake.
 // Executed by the /api/setup route using the migration Postgres client.
 // Data access from the app goes through RLS-protected Supabase queries where
 // possible; server route handlers additionally scope every query by the

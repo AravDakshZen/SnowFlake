@@ -76,7 +76,7 @@ function Tag({ children }: { children: React.ReactNode }) {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export default function TracewisePage() {
+export default function SnowflakePage() {
   const [heroReady, setHeroReady] = useState(false)
   const [videoReady, setVideoReady] = useState(false)
   const handleIntroDone = useCallback(() => {
@@ -183,7 +183,7 @@ export default function TracewisePage() {
         <div className="max-w-6xl mx-auto">
           <div className="mb-16">
             <PixelIcon type="platform" size={40} />
-            <div className="mt-4"><Tag>TRACEWISE PLATFORM</Tag></div>
+            <div className="mt-4"><Tag>SNOWFLAKE PLATFORM</Tag></div>
             <RevealText className="mt-5 text-4xl md:text-5xl lg:text-6xl font-light tracking-tight leading-[1.05]">
               {"Every signal you need\nto resolve incidents."}
             </RevealText>
@@ -274,12 +274,12 @@ export default function TracewisePage() {
         </div>
       </section>
 
-      {/* ── HOW TRACEWISE WORKS ───────────────────────────────────────────── */}
+      {/* ── HOW SNOWFLAKE WORKS ──────────────────────────────────────────── */}
       <section id="workflow" className="py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06] overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <div className="mb-16">
             <PixelIcon type="workflow" size={40} />
-            <div className="mt-4"><Tag>HOW TRACEWISE WORKS</Tag></div>
+            <div className="mt-4"><Tag>HOW SNOWFLAKE WORKS</Tag></div>
             <RevealText className="mt-5 text-4xl md:text-5xl font-light tracking-tight leading-[1.05]">
               {"From noisy signal to\nresolved incident."}
             </RevealText>
@@ -329,7 +329,7 @@ export default function TracewisePage() {
             <RevealText className="mt-5 text-4xl md:text-5xl font-light tracking-tight leading-[1.05]">
               {"One timeline.\nEvery answer."}
             </RevealText>
-            <p className="mt-6 max-w-md text-sm leading-relaxed text-black/45">Tracewise turns a scattered production incident into a living, queryable investigation. Follow the evidence from first alert to verified recovery.</p>
+            <p className="mt-6 max-w-md text-sm leading-relaxed text-black/45">Snowflake detects errors instantly, analyzes root causes with AI, and automatically generates fixes. From alert to resolution in seconds.</p>
           </div>
           <AgentInterface revealDelay={200} />
         </div>
@@ -347,7 +347,7 @@ export default function TracewisePage() {
               </RevealText>
             </div>
             <p className="text-sm text-black/45 leading-relaxed max-w-xs">
-              Connect the tools your team already trusts. Tracewise brings telemetry, code, and collaboration into the same investigation surface.
+              Connect the tools your team already trusts. Snowflake brings error detection, AI analysis, and automatic fixes into one platform.
             </p>
           </div>
           <div className="mb-12 flex flex-wrap gap-2">
@@ -522,7 +522,7 @@ export default function TracewisePage() {
         </div>
       </section>
 
-      {/* ── LIVE AGENTS ��──────────────────────────────────────────────────── */}
+      {/* ── LIVE AGENTS ��────────���─────────────────────────────────────────── */}
       <section id="live" className="py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06]">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
@@ -634,7 +634,7 @@ export default function TracewisePage() {
           </div>
         </div>
         <div className="max-w-6xl mx-auto mt-8 pt-6 border-t border-black/[0.04]">
-          <span className="text-xs text-black/20">© 2026 Tracewise. Built for calm incident response.</span>
+          <span className="text-xs text-black/20">© 2026 Snowflake. Error detection & automatic fixes.</span>
         </div>
       </footer>
     </div>

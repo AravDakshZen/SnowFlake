@@ -25,7 +25,7 @@ export async function sendSlackAlert(
             type: 'header',
             text: {
               type: 'plain_text',
-              text: '🔍 Tracewise Investigation Complete',
+              text: '🔍 Snowflake Investigation Complete',
             },
           },
           {
@@ -90,7 +90,7 @@ export async function sendEmailAlert(
     const htmlBody = `
       <html>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>🔍 Tracewise Investigation Complete</h2>
+          <h2>🔍 Snowflake Investigation Complete</h2>
           <p>Your backend error has been analyzed and a fix is ready.</p>
           
           <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -106,16 +106,16 @@ export async function sendEmailAlert(
               : ''
           }
 
-          <p><a href="${payload.dashboardUrl}" style="color: #3b82f6; text-decoration: underline;">View in Tracewise Dashboard</a></p>
+          <p><a href="${payload.dashboardUrl}" style="color: #3b82f6; text-decoration: underline;">View in Snowflake Dashboard</a></p>
 
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-          <p style="color: #6b7280; font-size: 12px;">This is an automated message from Tracewise.</p>
+          <p style="color: #6b7280; font-size: 12px;">This is an automated message from Snowflake.</p>
         </body>
       </html>
     `;
 
     const result = await resend.emails.send({
-      from: 'Tracewise <noreply@tracewise.ai>',
+      from: 'Snowflake <noreply@snowflake.ai>',
       to: emailAddress,
       subject: `Error Fixed: ${payload.rootCause.substring(0, 50)}...`,
       html: htmlBody,
