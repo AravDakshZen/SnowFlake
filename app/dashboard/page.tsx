@@ -118,9 +118,9 @@ export default function DashboardPage() {
           
           {clustersLoading ? (
             <div className="text-center py-8 text-black/40">Loading clusters...</div>
-          ) : clusters?.data?.length ? (
+          ) : clusters?.clusters?.length ? (
             <div className="space-y-3">
-              {clusters.data.slice(0, 5).map((cluster: any) => (
+              {clusters.clusters.slice(0, 5).map((cluster: any) => (
                 <div
                   key={cluster.id}
                   onClick={() => router.push(`/clusters/${cluster.id}`)}
@@ -164,9 +164,9 @@ export default function DashboardPage() {
           
           {investigationsLoading ? (
             <div className="text-center py-8 text-black/40">Loading investigations...</div>
-          ) : investigations?.data?.length ? (
+          ) : investigations?.investigations?.length ? (
             <div className="space-y-3">
-              {investigations.data.slice(0, 5).map((inv: any) => (
+              {investigations.investigations.slice(0, 5).map((inv: any) => (
                 <div
                   key={inv.id}
                   onClick={() => router.push(`/investigations/${inv.id}`)}
@@ -192,6 +192,7 @@ export default function DashboardPage() {
             <div className="text-center py-8 text-black/40">No investigations yet.</div>
           )}
         </section>
+        <DashboardLiveFeed projectId={projectId} />
       </main>
     </div>
   )
