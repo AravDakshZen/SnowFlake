@@ -13,8 +13,10 @@ export default function SettingsPage() {
   const [alertConfigs, setAlertConfigs] = useState<any>(null)
   const [githubConfigs, setGithubConfigs] = useState<any>(null)
   const [apiKey, setApiKey] = useState<any>(null)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     Promise.all([
       fetch('/api/settings/llm').then(r => r.json()).then(d => setLLMConfigs(d)),
       fetch('/api/settings/alerts').then(r => r.json()).then(d => setAlertConfigs(d)),
@@ -80,6 +82,8 @@ export default function SettingsPage() {
       setLoading(false)
     }
   }
+
+  if (!mounted) return null
 
   return (
     <div className="bg-[#F5F4F0] text-[#111] min-h-screen font-sans antialiased">
