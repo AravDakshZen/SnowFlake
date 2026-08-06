@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(cuid())
+  githubId   String    @unique
+  email      String?
+  name       String?
+  avatarUrl  String?
+  projects   Project[]
+  createdAt  DateTime  @default(now())
+}
+
+model Project {
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation(fields:[userId], references:[id], onDelete: Cascade)
+  name            String
+  apiKeyHash      String            @unique
+  apiKeyMasked    String
+  apiKeyLastUsed  DateTime?
+  llmConfig       LLMConfig?
+  repos           ProjectRepo[]
+  logs            ApiLog[]
+  clusters        ErrorCluster[]
+  investigations  Investigation[]
+  alertConfig     AlertConfig?
+  webhooks        OutboundWebhook[]
+  auditLogs       AuditLog[]
+  createdAt       DateTime          @default(now())
+
+  @@index([userId])
+}
+
+model ProjectRepo {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields:[projectId], references:[id], onDelete: Cascade)
+  owner           String
+  repoName        String
+  defaultBranch   String   @default("main")
+  encGithubToken  String
+  webhookId       Int?
+  createdAt       DateTime @default(now())
+
+  @@unique([projectId, owner, repoName])
+  @@index([projectId])
+}
+
+model ApiLog {
+  id              String        @id @default(cuid())
+  projectId       String
+  project         Project       @relation(fields:[projectId], references:[id], onDelete: Cascade)
+  endpoint        String
+  method          String
+  statusCode      Int
+  stackTrace      String
+  requestBody     Json?
+  responseBody    Json?
+  embedding       String?       // Store as JSON string for pgvector
+  clusterId       String?
+  cluster         ErrorCluster? @relation(fields:[clusterId], references:[id], onDelete: SetNull)
+  investigationId String?
+  investigation   Investigation? @relation(fields:[investigationId], references:[id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+
+  @@index([projectId])
+  @@index([clusterId])
+  @@index([statusCode])
+  @@index([createdAt])
+}
+
+model ErrorCluster {
+  id              String          @id @default(cuid())
+  projectId       String
+  project         Project         @relation(fields:[projectId], references:[id], onDelete: Cascade)
+  fingerprint     String
+  occurrenceCount Int             @default(1)
+  severity        String          @default("P3")
+  trend           Json            @default("[]")
+  firstSeen       DateTime        @default(now())
+  lastSeen        DateTime        @updatedAt
+  status          String          @default("open")
+  logs            ApiLog[]
+  investigations  Investigation[]
+
+  @@unique([projectId, fingerprint])
+  @@index([projectId])
+  @@index([severity])
+}
+
+model Investigation {
+  id                    String          @id @default(cuid())
+  projectId             String
+  project               Project         @relation(fields:[projectId], references:[id], onDelete: Cascade)
+  logId                 String?
+  clusterId             String?
+  cluster               ErrorCluster?   @relation(fields:[clusterId], references:[id], onDelete: SetNull)
+  parentInvestigationId String?
+  parentInvestigation   Investigation?  @relation("SelfHealing", fields:[parentInvestigationId], references:[id], onDelete: SetNull)
+  childInvestigations   Investigation[] @relation("SelfHealing")
+  logs                  ApiLog[]
+  rootCause             String?
+  affectedFile          String?
+  affectedLine          Int?
+  patchDiff             String?
+  suggestedFix          String?
+  confidence            Int?
+  confidenceReasoning   String?
+  fixStrategy           String?
+  explanation           String?
+  status                String          @default("queued")
+  prUrl                 String?
+  prNumber              Int?
+  branch                String?
+  attempt               Int             @default(1)
+  ciStatus              String?
+  ciFailureLog          String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+  @@index([confidence])
+  @@index([createdAt])
+}
+
+model LLMConfig {
+  id            String   @id @default(cuid())
+  projectId     String   @unique
+  project       Project  @relation(fields:[projectId], references:[id], onDelete: Cascade)
+  provider      String
+  model         String
+  encryptedKey  String?
+  baseUrl       String?
+  updatedAt     DateTime @updatedAt
+}
+
+model AlertConfig {
+  id               String   @id @default(cuid())
+  projectId        String   @unique
+  project          Project  @relation(fields:[projectId], references:[id], onDelete: Cascade)
+  slackWebhookUrl  String?
+  emailAddress     String?
+  alertOn          String[] @default([])
+  updatedAt        DateTime @updatedAt
+}
+
+model OutboundWebhook {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields:[projectId], references:[id], onDelete: Cascade)
+  url       String
+  secret    String
+  events    String[]
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields:[projectId], references:[id], onDelete: Cascade)
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([projectId])
+  @@index([action])
+  @@index([createdAt])
+}
