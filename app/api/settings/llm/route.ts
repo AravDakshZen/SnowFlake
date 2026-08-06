@@ -12,25 +12,23 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { provider, apiKey, model, baseUrl, projectId } = body;
+    const provider = String(body.provider || '').toLowerCase();
+    const apiKey = String(body.apiKey ?? body.api_key ?? '');
+    const model = String(body.model || '');
+    const baseUrl = body.baseUrl ?? body.base_url ?? null;
+    const sql = getSql();
+    const requestedProjectId = body.projectId ?? body.project_id ?? null;
+    const projectRows = requestedProjectId
+      ? await sql`SELECT id FROM public.projects WHERE id = ${requestedProjectId} AND user_id = ${session.user.id} LIMIT 1`
+      : await sql`SELECT id FROM public.projects WHERE user_id = ${session.user.id} ORDER BY created_at ASC LIMIT 1`;
+    const projectId = projectRows[0]?.id as string | undefined;
 
-    if (!provider || !apiKey || !model || !projectId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+    if (!provider || (!apiKey && provider !== 'ollama') || !model || !projectId) {
+      return NextResponse.json({ error: 'Choose a provider and model. A project and provider key are required.' }, { status: 400 });
     }
 
-    const sql = getSql();
-
-    // Verify project ownership
-    const projectCheck = await sql`
-      SELECT id FROM public.projects
-      WHERE id = ${projectId} AND user_id = ${session.user.id}
-      LIMIT 1
-    `;
-
-    if (projectCheck.length === 0) {
+    // Verify project ownership when a project id was supplied.
+    if (requestedProjectId && projectRows.length === 0) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 

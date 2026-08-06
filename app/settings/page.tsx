@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
+import { PROVIDERS } from '@/lib/llm'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -14,6 +15,8 @@ export default function SettingsPage() {
   const [githubConfigs, setGithubConfigs] = useState<any>(null)
   const [apiKey, setApiKey] = useState<any>(null)
   const [mounted, setMounted] = useState(false)
+  const [selectedProvider, setSelectedProvider] = useState('openai')
+  const selectedProviderDefinition = PROVIDERS[selectedProvider]
 
   useEffect(() => {
     setMounted(true)
@@ -34,6 +37,7 @@ export default function SettingsPage() {
       provider: formData.get('provider'),
       model: formData.get('model'),
       api_key: formData.get('api_key'),
+      base_url: formData.get('base_url') || null,
     }
 
     try {
@@ -129,28 +133,23 @@ export default function SettingsPage() {
             <form onSubmit={handleLLMSubmit} className="space-y-6">
               <div>
                 <label className="block text-xs tracking-widest text-black/40 mb-2">PROVIDER</label>
-                <select name="provider" required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="gemini">Google Gemini</option>
-                  <option value="groq">Groq</option>
-                  <option value="nvidia">NVIDIA</option>
-                  <option value="openrouter">OpenRouter</option>
-                  <option value="together">Together AI</option>
-                  <option value="ollama">Ollama (Local)</option>
+                <select name="provider" value={selectedProvider} onChange={(event) => setSelectedProvider(event.target.value)} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
+                  {Object.values(PROVIDERS).map((provider) => <option key={provider.id} value={provider.id}>{provider.icon}  {provider.name}</option>)}
                 </select>
+                <p className="mt-2 text-xs text-black/45">{selectedProviderDefinition.description}</p>
               </div>
 
               <div>
                 <label className="block text-xs tracking-widest text-black/40 mb-2">MODEL</label>
-                <input 
-                  type="text" 
-                  name="model" 
-                  placeholder="gpt-4, claude-3-opus, etc." 
-                  required 
-                  className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
-                />
+                <select name="model" defaultValue={selectedProviderDefinition.models[0]} key={selectedProvider} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
+                  {selectedProviderDefinition.models.map((model) => <option key={model} value={model}>{model}</option>)}
+                </select>
               </div>
+
+              {selectedProviderDefinition.defaultBaseUrl && <div>
+                <label className="block text-xs tracking-widest text-black/40 mb-2">BASE URL</label>
+                <input type="url" name="base_url" defaultValue={selectedProviderDefinition.defaultBaseUrl} className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20" />
+              </div>}
 
               <div>
                 <label className="block text-xs tracking-widest text-black/40 mb-2">API KEY</label>

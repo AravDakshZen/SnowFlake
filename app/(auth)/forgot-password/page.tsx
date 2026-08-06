@@ -1,109 +1,23 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { RevealText } from '@/components/reveal-text'
-import { PixelIcon } from '@/components/pixel-icon'
+import { Loader2, MailCheck } from 'lucide-react'
+import { AuthShell } from '@/components/auth-shell'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError(''); setLoading(true)
     try {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        setError(data.error || 'Failed to send reset email')
-        setLoading(false)
-        return
-      }
-
+      const response = await fetch('/api/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Unable to send reset email')
       setSent(true)
-    } catch (err) {
-      setError('An error occurred. Please try again.')
-      setLoading(false)
-    }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to send reset email') } finally { setLoading(false) }
   }
-
-  if (!mounted) return null
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <PixelIcon type="warning" size={48} className="mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-foreground">
-            <RevealText text="Reset Password" delay={0} />
-          </h1>
-          <p className="text-foreground/60 mt-2">Enter your email to receive a reset link</p>
-        </div>
-
-        {sent ? (
-          <div className="text-center">
-            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded mb-4">
-              <p className="text-green-600">
-                Check your email for a password reset link. It may take a few minutes to arrive.
-              </p>
-            </div>
-            <Link href="/signin" className="text-primary hover:underline">
-              Back to sign in
-            </Link>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 rounded border border-border bg-background text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2 rounded bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 transition"
-            >
-              {loading ? 'Sending...' : 'Send Reset Link'}
-            </button>
-          </form>
-        )}
-
-        <p className="text-center text-sm text-foreground/60 mt-4">
-          <Link href="/signin" className="text-primary hover:underline">
-            Back to sign in
-          </Link>
-        </p>
-      </div>
-    </div>
-  )
+  return <AuthShell mode="reset" eyebrow="Account recovery" title="Reset your password" description="We will send a secure, single-use link to your inbox.">{sent ? <div className="mt-8 rounded-2xl border border-border bg-muted/40 p-6 text-center"><MailCheck className="mx-auto size-8" /><h2 className="mt-4 font-semibold">Check your inbox</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">If an account exists for that address, a reset link is on its way.</p><Link href="/signin" className="mt-5 inline-block text-sm font-semibold underline-offset-4 hover:underline">Return to sign in</Link></div> : <form onSubmit={submit} className="mt-8 flex flex-col gap-4">{error && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}<label className="flex flex-col gap-2 text-sm font-medium">Work email<input className="h-12 rounded-xl border border-border bg-background px-4 outline-none focus:border-foreground focus:ring-2 focus:ring-foreground/10" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" required /></label><button className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground disabled:opacity-60" disabled={loading}>{loading && <Loader2 className="size-4 animate-spin" />} Send reset link</button><p className="text-center text-sm"><Link href="/signin" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Back to sign in</Link></p></form>}</AuthShell>
 }

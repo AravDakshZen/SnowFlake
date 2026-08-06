@@ -1,151 +1,37 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import Link from 'next/link'
-import { RevealText } from '@/components/reveal-text'
-import { PixelIcon } from '@/components/pixel-icon'
+import { useRouter } from 'next/navigation'
+import { Github, Chrome, Loader2 } from 'lucide-react'
+import { AuthShell } from '@/components/auth-shell'
 
 export default function SignUpPage() {
   const router = useRouter()
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [mounted, setMounted] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
+  async function handleSignUp(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError('')
+    if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return }
     setLoading(true)
-
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        setError(data.error || 'Sign up failed')
-        setLoading(false)
-        return
-      }
-
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 500)
-    } catch (err) {
-      setError('An error occurred. Please try again.')
-      setLoading(false)
-    }
+      const response = await fetch('/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: form.name, email: form.email, password: form.password }) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Unable to create account')
+      router.replace('/signin?created=1')
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to create account'); setLoading(false) }
   }
-
-  if (!mounted) return null
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <PixelIcon type="success" size={48} className="mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-foreground">
-            <RevealText text="Create Account" delay={0} />
-          </h1>
-          <p className="text-foreground/60 mt-2">Join Snowflake to detect and fix errors</p>
-        </div>
-
-        <form onSubmit={handleSignUp} className="space-y-4">
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded text-red-600 text-sm">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 rounded border border-border bg-background text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Your name"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 rounded border border-border bg-background text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 rounded border border-border bg-background text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2 rounded border border-border bg-background text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 rounded bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 transition"
-          >
-            {loading ? 'Creating account...' : 'Create Account'}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-foreground/60 mt-4">
-          Already have an account?{' '}
-          <Link href="/signin" className="text-primary hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </div>
-  )
+  const update = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, [key]: event.target.value }))
+  return <AuthShell eyebrow="Start shipping safely" title="Create your workspace" description="Create a Tracewise account and connect your first production repository.">
+    <div className="mt-8 flex flex-col gap-3 sm:flex-row"><a href="/api/auth/oauth?provider=github" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><Github className="size-4" /> GitHub</a><a href="/api/auth/oauth?provider=google" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><Chrome className="size-4" /> Google</a></div>
+    <div className="my-7 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /><span>OR USE EMAIL</span><span className="h-px flex-1 bg-border" /></div>
+    <form onSubmit={handleSignUp} className="flex flex-col gap-4">{error && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+      <label className="flex flex-col gap-2 text-sm font-medium">Full name<input className="h-12 rounded-xl border border-border bg-background px-4 outline-none focus:border-foreground focus:ring-2 focus:ring-foreground/10" value={form.name} onChange={update('name')} placeholder="Alex Morgan" required /></label>
+      <label className="flex flex-col gap-2 text-sm font-medium">Work email<input className="h-12 rounded-xl border border-border bg-background px-4 outline-none focus:border-foreground focus:ring-2 focus:ring-foreground/10" type="email" autoComplete="email" value={form.email} onChange={update('email')} placeholder="you@company.com" required /></label>
+      <div className="grid gap-4 sm:grid-cols-2"><label className="flex flex-col gap-2 text-sm font-medium">Password<input className="h-12 rounded-xl border border-border bg-background px-4 outline-none focus:border-foreground focus:ring-2 focus:ring-foreground/10" type="password" autoComplete="new-password" value={form.password} onChange={update('password')} placeholder="8+ characters" minLength={8} required /></label><label className="flex flex-col gap-2 text-sm font-medium">Confirm password<input className="h-12 rounded-xl border border-border bg-background px-4 outline-none focus:border-foreground focus:ring-2 focus:ring-foreground/10" type="password" autoComplete="new-password" value={form.confirmPassword} onChange={update('confirmPassword')} placeholder="Repeat password" minLength={8} required /></label></div>
+      <button className="mt-2 flex h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60" disabled={loading}>{loading && <Loader2 className="size-4 animate-spin" />} {loading ? 'Creating workspace' : 'Create account'}</button>
+    </form><p className="mt-7 text-center text-sm text-muted-foreground">Already have an account? <Link href="/signin" className="font-semibold text-foreground underline-offset-4 hover:underline">Sign in</Link></p>
+  </AuthShell>
 }

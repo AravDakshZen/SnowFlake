@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import Link from 'next/link'
-import { RevealText } from '@/components/reveal-text'
-import { PixelIcon } from '@/components/pixel-icon'
+import { useRouter } from 'next/navigation'
+import { Github, Chrome, Loader2 } from 'lucide-react'
+import { AuthShell } from '@/components/auth-shell'
 
 export default function SignInPage() {
   const router = useRouter()
@@ -12,110 +12,38 @@ export default function SignInPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [mounted, setMounted] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
+  async function handleSignIn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     setError('')
     setLoading(true)
-
     try {
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        setError(data.error || 'Sign in failed')
-        setLoading(false)
-        return
-      }
-
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 500)
-    } catch (err) {
-      setError('An error occurred. Please try again.')
+      const response = await fetch('/api/auth/signin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Invalid email or password')
+      router.replace('/dashboard')
+      router.refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to sign in')
       setLoading(false)
     }
   }
 
-  if (!mounted) return null
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <PixelIcon type="error" size={48} className="mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-foreground">
-            <RevealText text="Sign In" delay={0} />
-          </h1>
-          <p className="text-foreground/60 mt-2">Access your Snowflake dashboard</p>
-        </div>
-
-        <form onSubmit={handleSignIn} className="space-y-4">
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded text-red-600 text-sm">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 rounded border border-border bg-background text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 rounded border border-border bg-background text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 rounded bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 transition"
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-foreground/60 mt-4">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-primary hover:underline">
-            Sign up
-          </Link>
-        </p>
-
-        <p className="text-center text-sm text-foreground/60 mt-2">
-          <Link href="/forgot-password" className="text-primary hover:underline">
-            Forgot password?
-          </Link>
-        </p>
+    <AuthShell eyebrow="Welcome back" title="Sign in to Tracewise" description="Your production signal is waiting. Continue to the reliability workspace.">
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <a href="/api/auth/oauth?provider=github" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><Github className="size-4" /> GitHub</a>
+        <a href="/api/auth/oauth?provider=google" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><Chrome className="size-4" /> Google</a>
       </div>
-    </div>
+      <div className="my-7 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /><span>OR CONTINUE WITH EMAIL</span><span className="h-px flex-1 bg-border" /></div>
+      <form onSubmit={handleSignIn} className="flex flex-col gap-4">
+        {error && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+        <label className="flex flex-col gap-2 text-sm font-medium">Email<input className="h-12 rounded-xl border border-border bg-background px-4 outline-none transition placeholder:text-muted-foreground focus:border-foreground focus:ring-2 focus:ring-foreground/10" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" required /></label>
+        <label className="flex flex-col gap-2 text-sm font-medium">Password<input className="h-12 rounded-xl border border-border bg-background px-4 outline-none transition placeholder:text-muted-foreground focus:border-foreground focus:ring-2 focus:ring-foreground/10" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" required /></label>
+        <div className="flex justify-end"><Link href="/forgot-password" className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Forgot password?</Link></div>
+        <button className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60" disabled={loading}>{loading && <Loader2 className="size-4 animate-spin" />} {loading ? 'Signing in' : 'Sign in'}</button>
+      </form>
+      <p className="mt-7 text-center text-sm text-muted-foreground">New to Tracewise? <Link href="/signup" className="font-semibold text-foreground underline-offset-4 hover:underline">Create an account</Link></p>
+    </AuthShell>
   )
 }
