@@ -15,17 +15,39 @@ export default function SettingsPage() {
   const [githubConfigs, setGithubConfigs] = useState<any>(null)
   const [apiKey, setApiKey] = useState<any>(null)
   const [mounted, setMounted] = useState(false)
+  const [projectId, setProjectId] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState('')
   const [selectedProvider, setSelectedProvider] = useState('openai')
   const selectedProviderDefinition = PROVIDERS[selectedProvider]
 
   useEffect(() => {
     setMounted(true)
-    Promise.all([
-      fetch('/api/settings/llm').then(r => r.json()).then(d => setLLMConfigs(d)),
-      fetch('/api/settings/alerts').then(r => r.json()).then(d => setAlertConfigs(d)),
-      fetch('/api/github/repos').then(r => r.json()).then(d => setGithubConfigs(d)),
-      fetch('/api/project/apikey').then(r => r.json()).then(d => setApiKey(d)),
-    ]).catch(() => {})
+    async function loadSettings() {
+      try {
+        const projectResponse = await fetch('/api/project/current')
+        const projectData = await projectResponse.json()
+        const id = projectData.project?.id
+        if (!projectResponse.ok || !id) {
+          setFeedback(projectData.error || 'Create a project before configuring integrations.')
+          return
+        }
+        setProjectId(id)
+        const query = `?projectId=${encodeURIComponent(id)}`
+        const [llm, alerts, github, key] = await Promise.all([
+          fetch(`/api/settings/llm${query}`).then(r => r.json()),
+          fetch(`/api/settings/alerts${query}`).then(r => r.json()),
+          fetch(`/api/github/repos${query}`).then(r => r.json()),
+          fetch(`/api/project/apikey${query}`).then(r => r.json()),
+        ])
+        setLLMConfigs(llm)
+        setAlertConfigs(alerts)
+        setGithubConfigs(github)
+        setApiKey(key)
+      } catch {
+        setFeedback('Settings could not be loaded. Please try again.')
+      }
+    }
+    loadSettings()
   }, [])
 
   const handleLLMSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -38,6 +60,7 @@ export default function SettingsPage() {
       model: formData.get('model'),
       api_key: formData.get('api_key'),
       base_url: formData.get('base_url') || null,
+      project_id: projectId,
     }
 
     try {
@@ -47,12 +70,12 @@ export default function SettingsPage() {
         body: JSON.stringify(data),
       })
 
-      if (response.ok) {
-        alert('LLM configuration saved!')
-        e.currentTarget.reset()
-      }
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Error saving LLM configuration')
+      setFeedback('LLM configuration saved.')
+      e.currentTarget.reset()
     } catch (error) {
-      alert('Error saving LLM configuration')
+      setFeedback(error instanceof Error ? error.message : 'Error saving LLM configuration')
     } finally {
       setLoading(false)
     }
@@ -67,6 +90,7 @@ export default function SettingsPage() {
       slack_webhook_url: formData.get('slack_webhook') || null,
       email_address: formData.get('email') || null,
       alert_on: ['high_severity', 'new_cluster'],
+      project_id: projectId,
     }
 
     try {
@@ -76,12 +100,12 @@ export default function SettingsPage() {
         body: JSON.stringify(data),
       })
 
-      if (response.ok) {
-        alert('Alert configuration saved!')
-        e.currentTarget.reset()
-      }
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Error saving alert configuration')
+      setFeedback('Alert configuration saved.')
+      e.currentTarget.reset()
     } catch (error) {
-      alert('Error saving alert configuration')
+      setFeedback(error instanceof Error ? error.message : 'Error saving alert configuration')
     } finally {
       setLoading(false)
     }
@@ -105,6 +129,7 @@ export default function SettingsPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20 py-16">
+        {feedback && <p role="status" className="mb-6 rounded-xl border border-black/[0.08] bg-white px-4 py-3 text-sm text-black/65">{feedback}</p>}
         
         {/* Tabs */}
         <div className="flex gap-2 mb-8 border-b border-black/[0.06]">
@@ -200,8 +225,13 @@ export default function SettingsPage() {
               <p className="text-sm text-black/60 mb-4">
                 Connect your GitHub account to enable automatic PR creation and CI integration.
               </p>
-              <button onClick={async () => { const project = await fetch('/api/project/current').then((response) => response.json()); if (project.project?.id) window.location.href = `/api/github/connect?projectId=${encodeURIComponent(project.project.id)}` }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors">
-                CONNECT GITHUB
+              <button type="button" disabled={!projectId || loading} onClick={async () => {
+                if (!projectId) return setFeedback('Create a project before connecting GitHub.')
+                setLoading(true)
+                setFeedback('Opening GitHub authorization…')
+                window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}`
+              }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
+                {loading ? 'OPENING GITHUB…' : 'CONNECT GITHUB'}
               </button>
             </div>
 
@@ -268,21 +298,29 @@ export default function SettingsPage() {
             <div className="p-6 rounded-xl border border-black/[0.07] bg-white">
               <p className="text-xs text-black/40 tracking-widest uppercase mb-4">YOUR API KEY</p>
               <div className="font-mono text-sm bg-black/5 p-4 rounded-lg overflow-auto mb-4 break-all">
-                {apiKey?.data?.masked_key || 'sf_live_****...'}
+                {apiKey?.keyPrefix ? `${apiKey.keyPrefix}...` : 'No API key generated yet'}
               </div>
               <p className="text-xs text-black/40 mb-4">
-                Use this key to authenticate API requests from your application.
+                Generate a key, then copy the full value immediately. The full key is never stored or shown again.
               </p>
-              <button 
-                onClick={async () => {
-                  const response = await fetch('/api/project/apikey', { method: 'POST' })
-                  const data = await response.json()
-                  alert('New API key generated. Check your email for the full key.')
-                }}
-                className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors"
-              >
-                REGENERATE KEY
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button type="button" disabled={!projectId || loading} onClick={async () => {
+                  if (!projectId) return setFeedback('Create a project before generating an API key.')
+                  setLoading(true)
+                  try {
+                    const response = await fetch('/api/project/apikey', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, action: 'regenerate' }) })
+                    const result = await response.json()
+                    if (!response.ok) throw new Error(result.error || 'Unable to generate API key')
+                    setApiKey({ keyPrefix: result.apiKey.slice(0, 20), maskedKey: result.maskedKey })
+                    setFeedback('New API key generated. Copy it now; it will not be shown again.')
+                    await navigator.clipboard?.writeText(result.apiKey)
+                  } catch (error) {
+                    setFeedback(error instanceof Error ? error.message : 'Unable to generate API key')
+                  } finally { setLoading(false) }
+                }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
+                  {loading ? 'GENERATING…' : 'GENERATE / REGENERATE KEY'}
+                </button>
+              </div>
             </div>
           </section>
         )}

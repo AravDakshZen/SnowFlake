@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Github, Chrome, Loader2 } from 'lucide-react'
 import { AuthShell } from '@/components/auth-shell'
 
@@ -12,6 +12,13 @@ export default function SignInPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const errorCode = new URLSearchParams(window.location.search).get('error')
+    if (errorCode === 'google_unavailable') setError('Google sign-in is not configured for this Supabase project yet.')
+    if (errorCode === 'github_unavailable') setError('GitHub sign-in is not configured for this Supabase project yet.')
+    if (errorCode === 'oauth_callback') setError('The sign-in provider could not complete authentication. Please try again.')
+  }, [])
 
   async function handleSignIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
