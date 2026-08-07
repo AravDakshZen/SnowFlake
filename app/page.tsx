@@ -522,7 +522,7 @@ export default function SnowflakePage() {
         </div>
       </section>
 
-      {/* ── LIVE AGENTS ��────────���─────────────────────────────────────────── */}
+      {/* ── LIVE AGENTS ��────────���──���──────────────────────────────────────── */}
       <section id="live" className="py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06]">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
@@ -604,7 +604,7 @@ export default function SnowflakePage() {
       <footer className="py-10 px-6 md:px-12 lg:px-20 border-t border-black/[0.06]">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
           <div>
-            <span className="font-pixel text-xs tracking-[0.25em] text-black/50">TRACEWISE</span>
+            <span className="font-pixel text-xs tracking-[0.25em] text-black/50">SnowFlake</span>
             <p className="mt-2 text-xs text-black/25">Understand what happened. Fix what matters.</p>
           </div>
 
