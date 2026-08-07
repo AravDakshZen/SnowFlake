@@ -287,9 +287,72 @@ DO $$ BEGIN
   CREATE POLICY "alert_configs_update_own" ON public.alert_configs FOR UPDATE USING (auth.uid() = user_id);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- STEP 12: Done
+-- STEP 12: Compatibility columns used by the current application
 -- ============================================================================
--- ✅ MIGRATION COMPLETE - 12 STEPS
+ALTER TABLE IF EXISTS public.investigations
+  ADD COLUMN IF NOT EXISTS suggested_fix text,
+  ADD COLUMN IF NOT EXISTS confidence_reasoning text,
+  ADD COLUMN IF NOT EXISTS ci_status text,
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
+ALTER TABLE IF EXISTS public.api_logs
+  ADD COLUMN IF NOT EXISTS request_body jsonb,
+  ADD COLUMN IF NOT EXISTS response_body jsonb,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  action text NOT NULL,
+  entity_type text,
+  entity_id text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS audit_logs_project_idx ON public.audit_logs(project_id, created_at DESC);
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  CREATE POLICY "audit_logs_select_own" ON public.audit_logs FOR SELECT USING (
+    auth.uid() = user_id OR EXISTS (
+      SELECT 1 FROM public.projects p WHERE p.id = audit_logs.project_id AND p.user_id = auth.uid()
+    )
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+GRANT SELECT, INSERT ON public.audit_logs TO authenticated;
+
+CREATE TABLE IF NOT EXISTS public.outbound_webhooks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+  url text NOT NULL,
+  secret text NOT NULL,
+  events text[] NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS outbound_webhooks_project_idx ON public.outbound_webhooks(project_id);
+ALTER TABLE public.outbound_webhooks ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  CREATE POLICY "outbound_webhooks_select_own" ON public.outbound_webhooks FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.projects p WHERE p.id = outbound_webhooks.project_id AND p.user_id = auth.uid())
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "outbound_webhooks_insert_own" ON public.outbound_webhooks FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.projects p WHERE p.id = outbound_webhooks.project_id AND p.user_id = auth.uid())
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE POLICY "outbound_webhooks_delete_own" ON public.outbound_webhooks FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.projects p WHERE p.id = outbound_webhooks.project_id AND p.user_id = auth.uid())
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.outbound_webhooks TO authenticated;
+
+-- STEP 13: Done
+-- ============================================================================
+-- ✅ MIGRATION COMPLETE - 13 STEPS
 -- ============================================================================
 -- All tables created:
 --   1. projects

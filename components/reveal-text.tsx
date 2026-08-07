@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 
 // Splits text into words and reveals each with staggered opacity+blur+translateY
 // matching the AGENTIC intro animation style.
@@ -13,7 +13,7 @@ export function RevealText({
   delay = 0,          // initial delay before first word
   threshold = 0.2,    // IntersectionObserver threshold
 }: {
-  children: string
+  children?: ReactNode
   className?: string
   as?: "h1" | "h2" | "h3" | "p" | "span"
   stagger?: number
@@ -41,8 +41,10 @@ export function RevealText({
     return () => observer.disconnect()
   }, [threshold])
 
+  const text = typeof children === "string" || typeof children === "number" ? String(children) : ""
+
   // Split on spaces but preserve line breaks (rendered via <br />)
-  const parts = children.split(/(\n)/g)
+  const parts = text.split(/(\n)/g)
   const words: { word: string; index: number }[] = []
   let wordIndex = 0
   parts.forEach((part) => {
