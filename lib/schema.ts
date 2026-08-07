@@ -281,4 +281,41 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   create policy "alert_configs_update_own" on public.alert_configs for update using (auth.uid() = user_id);
 exception when duplicate_object then null; end $$;
+
+-- Audit and outbound webhook tables used by the settings and audit routes.
+create table if not exists public.audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  action text not null,
+  entity_type text,
+  entity_id uuid,
+  metadata jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists audit_logs_project_created_idx on public.audit_logs(project_id, created_at desc);
+alter table public.audit_logs enable row level security;
+do $$ begin
+  create policy "audit_logs_select_own" on public.audit_logs for select using (exists (
+    select 1 from public.projects p where p.id = audit_logs.project_id and p.user_id = auth.uid()
+  ));
+exception when duplicate_object then null; end $$;
+
+create table if not exists public.outbound_webhooks (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  url text not null,
+  secret text not null,
+  events text[] not null default '{}',
+  created_at timestamptz not null default now()
+);
+create index if not exists outbound_webhooks_project_idx on public.outbound_webhooks(project_id, created_at desc);
+alter table public.outbound_webhooks enable row level security;
+do $$ begin
+  create policy "outbound_webhooks_select_own" on public.outbound_webhooks for select using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "outbound_webhooks_insert_own" on public.outbound_webhooks for insert with check (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
 `
