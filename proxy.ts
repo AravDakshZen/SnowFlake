@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_PATHS = new Set(['/','/signin','/signup','/login','/forgot-password','/reset-password','/auth/callback'])
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isPublic = PUBLIC_PATHS.has(pathname) || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/github/callback') || pathname.startsWith('/api/github/webhook') || pathname.startsWith('/api/logs')
   if (isPublic || pathname.startsWith('/_next') || pathname.includes('.')) return NextResponse.next()
