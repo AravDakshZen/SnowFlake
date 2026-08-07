@@ -1,6 +1,11 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Resend requires an API key at construction time, so only instantiate it
+// when a key is configured. Email alerts become a no-op otherwise, rather
+// than crashing the module (and the build) when the env var is absent.
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 export interface AlertPayload {
   rootCause: string;
@@ -113,6 +118,11 @@ export async function sendEmailAlert(
         </body>
       </html>
     `;
+
+    if (!resend) {
+      console.warn('[v0] Resend API key not configured; skipping email alert.');
+      return false;
+    }
 
     const result = await resend.emails.send({
       from: 'Snowflake <noreply@snowflake.ai>',
