@@ -2,6 +2,7 @@ import { generateObject } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import type { LLMProvider, AnalysisResult } from '../index';
+import { withTimeout } from '../parse';
 
 const analysisSchema = z.object({
   rootCause: z.string(),
@@ -42,12 +43,14 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
 
     const userPrompt = `${previousContext}Stack trace:\n${stackTrace}\n\nSource files:\n${filesContext}`;
 
-    const result = await generateObject({
-      model: anthropic(this.model),
-      system: systemPrompt,
-      prompt: userPrompt,
-      schema: analysisSchema,
-    });
+    const result = await withTimeout(
+      generateObject({
+        model: anthropic(this.model),
+        system: systemPrompt,
+        prompt: userPrompt,
+        schema: analysisSchema,
+      })
+    );
 
     return result.object;
   }
@@ -64,8 +67,15 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
 
   async isAvailable(): Promise<boolean> {
     try {
-      await this.analyze('test', {});
-      return false;
+      await withTimeout(
+        generateObject({
+          model: anthropic(this.model),
+          system: 'Reply with "ok".',
+          prompt: 'test',
+          schema: z.object({ ok: z.string() }),
+        })
+      );
+      return true;
     } catch {
       return false;
     }

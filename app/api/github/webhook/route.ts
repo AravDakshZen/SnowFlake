@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '@/lib/db';
 import { queueInvestigation } from '@/lib/queue';
+import { emitToProject } from '@/lib/socket';
+import { logAudit } from '@/lib/audit';
+import { sendEscalationAlert } from '@/lib/alerts';
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,11 +17,9 @@ export async function POST(request: NextRequest) {
     const eventType = request.headers.get('x-github-event');
 
     if (eventType === 'workflow_run') {
-      // Handle CI failure and trigger re-investigation
       await handleWorkflowRun(payload);
     } else if (eventType === 'push') {
-      // Handle push events if needed
-      console.log('[v0] Push event received:', payload.repository.full_name);
+      console.log('[v0] Push event received:', payload.repository?.full_name);
     }
 
     return NextResponse.json({ success: true });
@@ -29,40 +32,42 @@ export async function POST(request: NextRequest) {
   }
 }
 
+function extractInvestigationPrefix(branch: string): string | null {
+  // Branch format: snowflake/fix-<8hex>-<timestamp> (see worker + PR route)
+  const match = branch.match(/^(?:snowflake|tracewise)\/fix-([a-f0-9]{1,8})(?:-|$)/);
+  return match?.[1] ?? null;
+}
+
 async function handleWorkflowRun(payload: any) {
   try {
-    const { workflow_run, repository } = payload;
+    const { workflow_run } = payload;
 
     // Only handle failures
-    if (workflow_run.conclusion !== 'failure') {
+    if (workflow_run?.conclusion !== 'failure') {
       return;
     }
 
-    // Check if this is a Snowflake branch
-    if (!workflow_run.head_branch.startsWith('snowflake/')) {
+    const headBranch = workflow_run?.head_branch ?? '';
+    const investigationPrefix = extractInvestigationPrefix(headBranch);
+    if (!investigationPrefix) {
+      console.log('[v0] Non-Snowflake branch or malformed branch name, ignoring:', headBranch);
       return;
     }
 
     const sql = getSql();
 
-    // Find the associated investigation by branch name
-    const branch = workflow_run.head_branch;
-    const investigationId = branch.split('-')[2]; // Extract ID from branch name
-
-    if (!investigationId) {
-      return;
-    }
-
-    // Get investigation details
+    // Find the associated investigation by branch id prefix
     const investigation = await sql`
       SELECT
         id,
+        project_id,
         log_id,
         cluster_id,
         attempt,
         pr_url
       FROM public.investigations
-      WHERE id = ${investigationId}
+      WHERE left(id::text, 8) = ${investigationPrefix}
+      ORDER BY created_at DESC
       LIMIT 1
     `;
 
@@ -72,22 +77,93 @@ async function handleWorkflowRun(payload: any) {
 
     const inv = investigation[0];
     const attempt = (inv.attempt || 1) + 1;
+    const projectId = inv.project_id;
 
-    // Only re-investigate up to 3 times
+    // Only re-investigate up to 3 times; on the final failure, escalate.
     if (attempt > 3) {
-      console.log(`[v0] Max re-investigation attempts reached for ${investigationId}`);
+      console.log(`[v0] Max re-investigation attempts reached for ${inv.id}, escalating`);
+
+      const alertConfig = await sql`
+        SELECT slack_webhook_url, email_address
+        FROM public.alert_configs
+        WHERE project_id = ${projectId}
+        LIMIT 1
+      `;
+
+      const existing = await sql`
+        SELECT root_cause FROM public.investigations
+        WHERE id = ${inv.id} OR parent_investigation_id = ${inv.id}
+        ORDER BY attempt ASC
+      `;
+      const previousRootCauses = existing.map((e) => e.root_cause).filter(Boolean);
+
+      const dashboardUrl = `${APP_URL}/investigations/${inv.id}`;
+      if (alertConfig.length > 0) {
+        const config = alertConfig[0];
+        await sendEscalationAlert(
+          config.slack_webhook_url,
+          config.email_address,
+          inv.id,
+          `CI still failing after 3 attempts for branch ${headBranch}`,
+          dashboardUrl,
+          {
+            attemptCount: 3,
+            branchName: headBranch,
+            previousRootCauses,
+            ciRunId: workflow_run?.id ?? undefined,
+            ciLogUrl: workflow_run?.html_url ?? undefined,
+          }
+        );
+      }
+
+      await logAudit(
+        projectId,
+        'escalation_fired',
+        'investigation',
+        inv.id,
+        { reason: 'Max attempts reached', attempts: 3, branchName: headBranch },
+        undefined
+      );
+
+      emitToProject(projectId, 'alert:escalated', {
+        investigationId: inv.id,
+        branchName: headBranch,
+        reason: 'Max re-investigation attempts reached',
+      });
+
+      await sql`
+        UPDATE public.investigations
+        SET status = 'escalated'
+        WHERE id = ${inv.id}
+      `.catch(() => {});
       return;
     }
 
     console.log(`[v0] CI failed for Snowflake fix, re-investigating (attempt ${attempt})`);
 
-    // Queue new investigation
-    await queueInvestigation({
-      projectId: investigation[0].project_id,
+    const queued = await queueInvestigation({
+      projectId,
       logId: inv.log_id,
       clusterId: inv.cluster_id,
       parentInvestigationId: inv.id,
+      attempt,
     });
+
+    emitToProject(projectId, 'ci:failed_reinvestigating', {
+      investigationId: inv.id,
+      newInvestigationId: queued.investigationId,
+      attempt,
+      branchName: headBranch,
+    });
+
+    await logAudit(
+      projectId,
+      'reinvestigation_triggered',
+      'investigation',
+      inv.id,
+      { newInvestigationId: queued.investigationId, attempt, branchName: headBranch },
+      undefined
+    );
   } catch (error) {
     console.error('[v0] Error handling workflow run:', error);
   }

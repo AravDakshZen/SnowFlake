@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,6 +56,15 @@ export async function POST(request: NextRequest) {
         alert_on = ${JSON.stringify(alertOn)}
       RETURNING id
     `;
+
+    await logAudit(
+      projectId,
+      'alert_config_updated',
+      'alert_config',
+      result[0].id,
+      { alertOn, emailProvided: Boolean(emailAddress), slackProvided: Boolean(slackWebhookUrl) },
+      session.user.id
+    );
 
     return NextResponse.json({ configId: result[0].id });
   } catch (error) {

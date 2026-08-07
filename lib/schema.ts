@@ -241,6 +241,7 @@ create table if not exists public.github_configs (
   default_branch text not null,
   encrypted_token text not null,
   webhook_id text,
+  auto_pr boolean not null default true,
   created_at timestamptz not null default now(),
   unique (project_id)
 );

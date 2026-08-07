@@ -2,6 +2,7 @@ import { generateObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import type { LLMProvider, AnalysisResult } from '../index';
+import { withTimeout } from '../parse';
 
 const analysisSchema = z.object({
   rootCause: z.string(),
@@ -47,12 +48,14 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
 
     const userPrompt = `${previousContext}Stack trace:\n${stackTrace}\n\nSource files:\n${filesContext}`;
 
-    const result = await generateObject({
-      model: this.client(this.model),
-      system: systemPrompt,
-      prompt: userPrompt,
-      schema: analysisSchema,
-    });
+    const result = await withTimeout(
+      generateObject({
+        model: this.client(this.model),
+        system: systemPrompt,
+        prompt: userPrompt,
+        schema: analysisSchema,
+      })
+    );
 
     return result.object;
   }

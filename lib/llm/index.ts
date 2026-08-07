@@ -33,6 +33,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
   deepinfra: { id: 'deepinfra', name: 'Deep Infra', icon: 'DI', models: ['meta-llama/Meta-Llama-3.1-70B-Instruct', 'Qwen/Qwen2.5-Coder-32B-Instruct'], requiresKey: true, description: 'Fast hosted open-source models.' },
   nvidia: { id: 'nvidia', name: 'NVIDIA NIM', icon: 'N', models: ['meta/llama-3.1-70b-instruct', 'mistralai/mixtral-8x7b-instruct-v0.1', 'qwen/qwen2.5-coder-32b-instruct'], requiresKey: true, defaultBaseUrl: 'https://integrate.api.nvidia.com/v1', description: 'NVIDIA hosted inference endpoints.' },
   ollama: { id: 'ollama', name: 'Ollama', icon: 'O', models: ['llama3.2', 'qwen2.5-coder', 'deepseek-coder-v2', 'mistral'], requiresKey: false, defaultBaseUrl: 'http://localhost:11434/v1', description: 'Private local models through Ollama.' },
+  together: { id: 'together', name: 'Together AI', icon: 'T', models: ['meta-llama/Llama-3.1-8B-Instruct-Turbo', 'Qwen/Qwen2.5-Coder-32B-Instruct'], requiresKey: true, description: 'Fast unified inference across open models.' },
   groq: { id: 'groq', name: 'Groq', icon: 'GQ', models: ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b'], requiresKey: true, description: 'Low-latency inference.' },
   openrouter: { id: 'openrouter', name: 'OpenRouter', icon: 'OR', models: ['openai/gpt-4o-mini', 'anthropic/claude-3.5-sonnet'], requiresKey: true, description: 'A unified gateway to many providers.' },
 }
@@ -46,6 +47,8 @@ export async function getLLMProvider(provider: string, apiKey: string, model: st
     case 'ollama': { const { OllamaProvider } = await import('./providers/ollama'); return new OllamaProvider(model, baseUrl ?? PROVIDERS.ollama.defaultBaseUrl) }
     case 'groq': { const { GroqProvider } = await import('./providers/groq'); return new GroqProvider(apiKey, model) }
     case 'openrouter': { const { OpenRouterProvider } = await import('./providers/openrouter'); return new OpenRouterProvider(apiKey, model) }
+    case 'together': { const { TogetherProvider } = await import('./providers/together'); return new TogetherProvider(apiKey, model) }
+    case 'deepinfra': { const { DeepInfraProvider } = await import('./providers/deepinfra'); return new DeepInfraProvider(apiKey, model) }
     default: throw new Error(`Unsupported LLM provider: ${provider}`)
   }
 }

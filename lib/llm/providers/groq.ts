@@ -2,6 +2,7 @@ import { generateObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import type { LLMProvider, AnalysisResult } from '../index';
+import { withTimeout } from '../parse';
 
 const analysisSchema = z.object({
   rootCause: z.string(),
@@ -14,18 +15,18 @@ const analysisSchema = z.object({
   fixStrategy: z.enum(['one-liner', 'refactor', 'dependency-update', 'config-change']),
 });
 
-const groq = createOpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: 'https://api.groq.com/openai/v1',
-});
-
 export class GroqProvider implements LLMProvider {
   private apiKey: string;
   private model: string;
+  private client: ReturnType<typeof createOpenAI>;
 
   constructor(apiKey: string, model: string) {
     this.apiKey = apiKey;
     this.model = model;
+    this.client = createOpenAI({
+      apiKey,
+      baseURL: 'https://api.groq.com/openai/v1',
+    });
   }
 
   async analyze(
@@ -47,12 +48,14 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
 
     const userPrompt = `${previousContext}Stack trace:\n${stackTrace}\n\nSource files:\n${filesContext}`;
 
-    const result = await generateObject({
-      model: groq(this.model),
-      system: systemPrompt,
-      prompt: userPrompt,
-      schema: analysisSchema,
-    });
+    const result = await withTimeout(
+      generateObject({
+        model: this.client(this.model),
+        system: systemPrompt,
+        prompt: userPrompt,
+        schema: analysisSchema,
+      })
+    );
 
     return result.object;
   }

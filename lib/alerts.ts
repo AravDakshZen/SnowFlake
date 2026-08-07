@@ -128,26 +128,112 @@ export async function sendEmailAlert(
   }
 }
 
+export interface EscalationOptions {
+  attemptCount?: number;
+  branchName?: string;
+  previousRootCauses?: string[];
+  ciRunId?: number | string;
+  ciLogUrl?: string;
+}
+
 export async function sendEscalationAlert(
   slackWebhookUrl: string | null,
   emailAddress: string | null,
   investigationId: string,
   reason: string,
-  dashboardUrl: string
+  dashboardUrl: string,
+  options: EscalationOptions = {}
 ): Promise<void> {
-  const payload = {
-    rootCause: `Investigation failed after 3 attempts: ${reason}`,
-    affectedFile: 'N/A',
+  const attemptCount = options.attemptCount ?? 3;
+  const rootCause = `Investigation failed after ${attemptCount} attempts: ${reason}`;
+
+  const payload: AlertPayload = {
+    rootCause,
+    affectedFile: options.branchName ?? 'N/A',
     confidence: 0,
     investigationId,
     dashboardUrl,
   };
 
+  const extras =
+    options.previousRootCauses?.length || options.ciLogUrl
+      ? {
+          previousRootCauses: options.previousRootCauses ?? [],
+          ciLogUrl: options.ciLogUrl ?? undefined,
+        }
+      : undefined;
+
   if (slackWebhookUrl) {
-    await sendSlackAlert(slackWebhookUrl, payload);
+    await sendSlackAlertWithExtras(slackWebhookUrl, payload, extras);
   }
 
   if (emailAddress) {
     await sendEmailAlert(emailAddress, payload);
+  }
+}
+
+async function sendSlackAlertWithExtras(
+  webhookUrl: string,
+  payload: AlertPayload,
+  extras?: { previousRootCauses?: string[]; ciLogUrl?: string }
+): Promise<void> {
+  const blocks: Array<Record<string, unknown>> = [
+    {
+      type: 'header',
+      text: { type: 'plain_text', text: '🚨 Snowflake Escalation' },
+    },
+    {
+      type: 'section',
+      text: { type: 'mrkdwn', text: `*Reason:*\n${payload.rootCause}` },
+    },
+    {
+      type: 'section',
+      fields: [
+        { type: 'mrkdwn', text: `*Investigation ID:*\n${payload.investigationId}` },
+        { type: 'mrkdwn', text: `*Branch:*\n${payload.affectedFile}` },
+      ],
+    },
+  ];
+
+  if (extras?.previousRootCauses?.length) {
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Previous attempts:*\n${extras.previousRootCauses.join('\n\n')}`,
+      },
+    });
+  }
+
+  if (extras?.ciLogUrl) {
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `<${extras.ciLogUrl}|View CI logs>`,
+      },
+    });
+  }
+
+  blocks.push({
+    type: 'actions',
+    elements: [
+      {
+        type: 'button',
+        text: { type: 'plain_text', text: 'View in Dashboard' },
+        url: payload.dashboardUrl,
+      },
+    ],
+  });
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocks }),
+    });
+    console.log('[v0] Escalation Slack alert:', response.ok ? 'sent' : `failed (${response.status})`);
+  } catch (error) {
+    console.error('[v0] Failed to send escalation Slack alert:', error);
   }
 }

@@ -1,6 +1,7 @@
 import { generateText, embed } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import type { LLMProvider, AnalysisResult } from '../index'
+import { parseAnalysisText, withTimeout, LLM_TIMEOUT_MS } from '../parse'
 
 export class TogetherProvider implements LLMProvider {
   private apiKey: string
@@ -50,17 +51,23 @@ Respond ONLY with valid JSON matching this schema:
       systemPrompt += `\n\nPrevious fix attempts failed. Learn from these and provide a corrected fix.`
     }
 
-    const text = await generateText({
-      model: this.client.chat(this.model),
-      system: systemPrompt,
-      prompt: `Stack Trace:\n${stackTrace}\n\nSource Files:\n${fileContext}`,
-      temperature: 0.2,
-    })
+    const run = async () => {
+      const text = await generateText({
+        model: this.client.chat(this.model),
+        system: systemPrompt,
+        prompt: `Stack Trace:\n${stackTrace}\n\nSource Files:\n${fileContext}`,
+        temperature: 0.2,
+      })
+
+      return parseAnalysisText(text.text)
+    }
 
     try {
-      return JSON.parse(text.text)
-    } catch {
-      throw new Error(`Failed to parse LLM response: ${text.text}`)
+      return await withTimeout(run())
+    } catch (error) {
+      throw new Error(
+        `Failed to parse LLM response: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 

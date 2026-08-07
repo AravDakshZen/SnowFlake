@@ -3,6 +3,7 @@ import { getSql } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { decryptValue } from '@/lib/encryption';
 import { GitHubClient } from '@/lib/github';
+import { logAudit } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { projectId, repoOwner, repoName, encryptedToken } = body;
+    const { projectId, repoOwner, repoName, encryptedToken, autoPr = true } = body;
 
     if (!projectId || !repoOwner || !repoName || !encryptedToken) {
       return NextResponse.json(
@@ -103,7 +104,8 @@ export async function POST(request: NextRequest) {
         repo_owner,
         repo_name,
         default_branch,
-        encrypted_token
+        encrypted_token,
+        auto_pr
       )
       VALUES (
         ${projectId},
@@ -111,14 +113,25 @@ export async function POST(request: NextRequest) {
         ${repoOwner},
         ${repoName},
         'main',
-        ${encryptedToken}
+        ${encryptedToken},
+        ${autoPr}
       )
       ON CONFLICT (project_id) DO UPDATE
       SET repo_owner = ${repoOwner},
         repo_name = ${repoName},
-        encrypted_token = ${encryptedToken}
+        encrypted_token = ${encryptedToken},
+        auto_pr = ${autoPr}
       RETURNING id
     `;
+
+    await logAudit(
+      projectId,
+      'repo_connected',
+      'github_config',
+      result[0].id,
+      { repoOwner, repoName, autoPr },
+      session.user.id
+    );
 
     return NextResponse.json({ configId: result[0].id });
   } catch (error) {

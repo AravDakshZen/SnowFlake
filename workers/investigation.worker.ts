@@ -4,11 +4,28 @@ import { decryptValue } from '@/lib/encryption';
 import { GitHubClient } from '@/lib/github';
 import { sendSlackAlert, sendEmailAlert, sendEscalationAlert } from '@/lib/alerts';
 import type { InvestigationJob } from '@/lib/queue';
+import { emitToProject } from '@/lib/socket';
+import { logAudit } from '@/lib/audit';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 export async function processInvestigation(job: InvestigationJob): Promise<void> {
   const sql = getSql();
+
+  // Mark the queued investigation as in_progress up-front so the dashboard
+  // reflects the full lifecycle (queued -> in_progress -> completed/failed).
+  if (job.investigationId) {
+    await sql`
+      UPDATE public.investigations
+      SET status = 'in_progress'
+      WHERE id = ${job.investigationId}
+    `.catch((error) => console.error('[v0] Failed to mark investigation in_progress:', error));
+
+    emitToProject(job.projectId, 'investigation:progress', {
+      investigationId: job.investigationId,
+      stage: 'analyzing',
+    });
+  }
 
   try {
     // Get log details
@@ -51,7 +68,7 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
 
     // Get GitHub config
     const gitHubConfig = await sql`
-      SELECT repo_owner, repo_name, default_branch, encrypted_token
+      SELECT repo_owner, repo_name, default_branch, encrypted_token, auto_pr
       FROM public.github_configs
       WHERE project_id = ${log.project_id}
       LIMIT 1
@@ -115,49 +132,97 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
       previousAttempts.length > 0 ? previousAttempts : undefined
     );
 
-    // Create investigation record
-    const investigation = await sql`
-      INSERT INTO public.investigations (
-        project_id,
-        user_id,
-        log_id,
-        cluster_id,
-        parent_investigation_id,
-        question,
-        root_cause,
-        affected_file,
-        affected_line,
-        patch_diff,
-        confidence,
-        fix_strategy,
-        explanation,
-        status,
-        attempt
-      )
-      VALUES (
-        ${log.project_id},
-        ${log.user_id},
-        ${job.logId},
-        ${job.clusterId},
-        ${job.parentInvestigationId || null},
-        ${log.endpoint},
-        ${analysis.rootCause},
-        ${analysis.affectedFile},
-        ${analysis.affectedLine},
-        ${analysis.patchDiff},
-        ${analysis.confidence},
-        ${analysis.fixStrategy},
-        ${analysis.explanation},
-        'completed',
-        ${(job.attempt || 1)}
-      )
-      RETURNING id
-    `;
+    // Create or update the investigation record
+    let investigationId = job.investigationId;
 
-    const investigationId = investigation[0].id;
+    if (investigationId) {
+      await sql`
+        UPDATE public.investigations
+        SET
+          question = ${log.endpoint},
+          root_cause = ${analysis.rootCause},
+          affected_file = ${analysis.affectedFile},
+          affected_line = ${analysis.affectedLine},
+          patch_diff = ${analysis.patchDiff},
+          confidence = ${analysis.confidence},
+          fix_strategy = ${analysis.fixStrategy},
+          explanation = ${analysis.explanation},
+          status = 'completed',
+          attempt = ${(job.attempt || 1)},
+          resolved_at = NOW()
+        WHERE id = ${investigationId}
+      `;
+    } else {
+      const investigation = await sql`
+        INSERT INTO public.investigations (
+          project_id,
+          user_id,
+          log_id,
+          cluster_id,
+          parent_investigation_id,
+          question,
+          root_cause,
+          affected_file,
+          affected_line,
+          patch_diff,
+          confidence,
+          fix_strategy,
+          explanation,
+          status,
+          attempt
+        )
+        VALUES (
+          ${log.project_id},
+          ${log.user_id},
+          ${job.logId},
+          ${job.clusterId},
+          ${job.parentInvestigationId || null},
+          ${log.endpoint},
+          ${analysis.rootCause},
+          ${analysis.affectedFile},
+          ${analysis.affectedLine},
+          ${analysis.patchDiff},
+          ${analysis.confidence},
+          ${analysis.fixStrategy},
+          ${analysis.explanation},
+          'completed',
+          ${(job.attempt || 1)}
+        )
+        RETURNING id
+      `;
+      investigationId = investigation[0].id;
+    }
 
-    // Auto-create PR if confidence is high
-    if (analysis.confidence > 80 && gitHubConfig.length > 0) {
+    if (!investigationId) {
+      throw new Error('Failed to persist investigation record');
+    }
+
+    await logAudit(
+      log.project_id,
+      'investigation_complete',
+      'investigation',
+      investigationId,
+      {
+        rootCause: analysis.rootCause,
+        affectedFile: analysis.affectedFile,
+        confidence: analysis.confidence,
+        attempt: job.attempt || 1,
+      },
+      log.user_id
+    );
+
+    emitToProject(log.project_id, 'investigation:complete', {
+      investigationId,
+      rootCause: analysis.rootCause,
+      affectedFile: analysis.affectedFile,
+      confidence: analysis.confidence,
+    });
+
+    // Auto-create PR if confidence is high and auto-PR is enabled
+    const autoPrEnabled = gitHubConfig.length > 0
+      ? (gitHubConfig[0].auto_pr ?? true)
+      : false;
+    if (analysis.confidence > 80 && gitHubConfig.length > 0 && autoPrEnabled) {
       try {
         const ghConfig = gitHubConfig[0];
         const token = decryptValue(ghConfig.encrypted_token);
@@ -226,6 +291,28 @@ Generated by [Snowflake](${APP_URL})`;
         `;
 
         console.log(`[v0] PR created: ${pr.url}`);
+
+        await logAudit(
+          log.project_id,
+          'pr_created',
+          'investigation',
+          investigationId,
+          { prUrl: pr.url, prNumber: pr.number, branchName },
+          log.user_id
+        );
+
+        emitToProject(log.project_id, 'pr:created', {
+          investigationId,
+          prUrl: pr.url,
+          prNumber: pr.number,
+          branchName,
+        });
+
+        emitToProject(log.project_id, 'ci:watching', {
+          investigationId,
+          branchName,
+          status: 'watching_ci',
+        });
       } catch (error) {
         console.error('[v0] Auto-PR creation failed:', error);
       }
@@ -263,6 +350,30 @@ Generated by [Snowflake](${APP_URL})`;
     console.log(`[v0] Investigation ${investigationId} completed`);
   } catch (error) {
     console.error('[v0] Investigation processing error:', error);
+
+    // Mark the investigation as failed so the lifecycle is complete
+    if (job.investigationId) {
+      await sql`
+        UPDATE public.investigations
+        SET status = 'failed'
+        WHERE id = ${job.investigationId}
+      `.catch((updateError) => console.error('[v0] Failed to mark investigation failed:', updateError));
+
+      emitToProject(job.projectId, 'investigation:complete', {
+        investigationId: job.investigationId,
+        status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+
+      await logAudit(
+        job.projectId,
+        'reinvestigation_triggered',
+        'investigation',
+        job.investigationId,
+        { status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' },
+        undefined
+      );
+    }
 
     // On fatal error, escalate alert
     try {

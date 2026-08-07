@@ -3,6 +3,7 @@ import { getSql } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { encryptValue, decryptValue } from '@/lib/encryption';
 import { getLLMProvider } from '@/lib/llm';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,6 +58,15 @@ export async function POST(request: NextRequest) {
         SET model = ${model}, encrypted_key = ${encryptedKey}, base_url = ${baseUrl || null}
         RETURNING id, provider, model
       `;
+
+      await logAudit(
+        projectId,
+        'llm_key_updated',
+        'llm_config',
+        result[0].id,
+        { provider, model },
+        session.user.id
+      );
 
       return NextResponse.json({
         provider,

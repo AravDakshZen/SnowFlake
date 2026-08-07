@@ -16,6 +16,20 @@ export class GitHubClient {
     this.repo = repo;
   }
 
+  private isTokenExpired(error: unknown): boolean {
+    const status = (error as { status?: number })?.status;
+    return status === 401 || status === 403;
+  }
+
+  private rethrowAuth(error: unknown): never {
+    if (this.isTokenExpired(error)) {
+      throw new Error(
+        'GitHub token is invalid or has expired. Reconnect your GitHub account in Settings.'
+      );
+    }
+    throw error;
+  }
+
   async getFile(path: string, ref: string = 'main'): Promise<GitHubFile> {
     try {
       const response = await this.octokit.rest.repos.getContent({
@@ -36,7 +50,7 @@ export class GitHubClient {
       return { path, content }
     } catch (error) {
       console.error(`[v0] Failed to fetch ${path}:`, error);
-      throw error;
+      this.rethrowAuth(error);
     }
   }
 
@@ -56,7 +70,7 @@ export class GitHubClient {
       });
     } catch (error) {
       console.error(`[v0] Failed to create branch ${branchName}:`, error);
-      throw error;
+      this.rethrowAuth(error);
     }
   }
 
@@ -86,6 +100,7 @@ export class GitHubClient {
         });
       }
     } catch (error) {
+      this.rethrowAuth(error);
       // File doesn't exist, create it
       await this.octokit.rest.repos.createOrUpdateFileContents({
         owner: this.owner,
@@ -120,7 +135,7 @@ export class GitHubClient {
       };
     } catch (error) {
       console.error('[v0] Failed to create pull request:', error);
-      throw error;
+      this.rethrowAuth(error);
     }
   }
 
@@ -133,7 +148,55 @@ export class GitHubClient {
         labels,
       });
     } catch (error) {
-      console.error(`[v0] Failed to add labels to PR ${prNumber}:`, error);
+      if (this.isTokenExpired(error)) {
+        console.error('[v0] GitHub token invalid while adding labels:', error);
+        return;
+      }
+      // Label may not exist yet — create it, then retry once.
+      try {
+        for (const label of labels) {
+          await this.octokit.rest.issues.createLabel({
+            owner: this.owner,
+            repo: this.repo,
+            name: label,
+            color: '0e1116',
+          });
+        }
+        await this.octokit.rest.issues.addLabels({
+          owner: this.owner,
+          repo: this.repo,
+          issue_number: prNumber,
+          labels,
+        });
+      } catch (retryError) {
+        console.error(`[v0] Failed to create/add labels to PR ${prNumber}:`, retryError);
+      }
+    }
+  }
+
+  async fetchCILog(runId: number): Promise<string> {
+    try {
+      const jobs = await this.octokit.rest.actions.listJobsForWorkflowRun({
+        owner: this.owner,
+        repo: this.repo,
+        run_id: runId,
+      });
+      const job = jobs.data.jobs[0];
+      if (!job) return '';
+
+      const logs = await this.octokit.rest.actions.downloadJobLogsForWorkflowRun({
+        owner: this.owner,
+        repo: this.repo,
+        job_id: job.id,
+      });
+      const raw = logs.data as unknown;
+      if (typeof raw === 'string') return raw;
+      if (raw instanceof ArrayBuffer) return Buffer.from(new Uint8Array(raw)).toString('utf-8');
+      if (raw instanceof Uint8Array) return Buffer.from(raw).toString('utf-8');
+      return String(raw ?? '');
+    } catch (error) {
+      console.error('[v0] Failed to fetch CI log:', error);
+      return '';
     }
   }
 
@@ -152,7 +215,7 @@ export class GitHubClient {
       }));
     } catch (error) {
       console.error('[v0] Failed to list repos:', error);
-      throw error;
+      this.rethrowAuth(error);
     }
   }
 
@@ -166,14 +229,14 @@ export class GitHubClient {
           url: webhookUrl,
           content_type: 'json',
         },
-        events: ['push', 'workflow_run'],
+        events: ['push', 'workflow_run', 'pull_request'],
         active: true,
       });
 
       return response.data.id;
     } catch (error) {
       console.error('[v0] Failed to register webhook:', error);
-      throw error;
+      this.rethrowAuth(error);
     }
   }
 }

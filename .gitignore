@@ -15,3 +15,7 @@ node_modules
 .next/
 .DS_Store
 .vercel
+
+# Build/agent artifacts
+tsconfig.tsbuildinfo
+.omo/
