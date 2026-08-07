@@ -4,12 +4,23 @@ import { setSession } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json()
+    const body = await request.json().catch(() => null)
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
+    const password = typeof body?.password === 'string' ? body.password : ''
     if (!email || !password) return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
+
     const supabase = await createClient()
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error || !data.user) return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
-    await setSession(data.user.id, { email: data.user.email, name: data.user.user_metadata?.name ?? data.user.email?.split('@')[0] })
+    if (error || !data.user) {
+      if (error) console.error('[v0] sign in rejected:', error.message)
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+    }
+
+    // Keep Tracewise's existing custom session alongside the Supabase session.
+    await setSession(data.user.id, {
+      email: data.user.email,
+      name: data.user.user_metadata?.name ?? data.user.email?.split('@')[0],
+    })
     return NextResponse.json({ user: { id: data.user.id, email: data.user.email } })
   } catch (error) {
     console.error('[v0] sign in failed', error)

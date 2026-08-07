@@ -13,7 +13,8 @@ export async function getSession() {
 
     // In production, validate and decode the session JWT
     // For now, this is a placeholder that assumes the session is valid
-    const sessionData = JSON.parse(Buffer.from(sessionCookie.value, 'base64').toString());
+    const sessionData = JSON.parse(Buffer.from(sessionCookie.value, 'base64url').toString('utf8'));
+    if (!sessionData?.user?.id) return null;
     return sessionData;
   } catch (error) {
     console.error('[v0] Error reading session:', error);
@@ -30,10 +31,11 @@ export async function setSession(userId: string, userData: any) {
     },
   };
 
-  cookieStore.set('session', Buffer.from(JSON.stringify(sessionData)).toString('base64'), {
+  cookieStore.set('session', Buffer.from(JSON.stringify(sessionData)).toString('base64url'), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
+    path: '/',
     maxAge: 7 * 24 * 60 * 60, // 7 days
   });
 }
