@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/github/callback`
+  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/api/github/callback`
   const scope = 'repo write:repo_hook admin:repo_hook'
 
   const githubAuthUrl = new URL('https://github.com/login/oauth/authorize')

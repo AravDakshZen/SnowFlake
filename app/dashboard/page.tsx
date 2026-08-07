@@ -20,8 +20,6 @@ export default function DashboardPage() {
   useEffect(() => {
     setMounted(true)
     
-    fetch('/api/project/current').then(res => res.json()).then(data => setProjectId(data.project?.id)).catch(() => {})
-
     fetch('/api/project/current')
       .then(res => res.json())
       .then(data => {
@@ -192,7 +190,6 @@ export default function DashboardPage() {
             <div className="text-center py-8 text-black/40">No investigations yet.</div>
           )}
         </section>
-        <DashboardLiveFeed projectId={projectId} />
       </main>
     </div>
   )
