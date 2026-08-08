@@ -219,6 +219,23 @@ export class GitHubClient {
     }
   }
 
+  async getProfile(): Promise<{ login: string; name?: string; avatarUrl?: string; htmlUrl?: string; bio?: string; publicRepos?: number }> {
+    try {
+      const { data } = await this.octokit.rest.users.getAuthenticated();
+      return {
+        login: data.login,
+        name: data.name ?? undefined,
+        avatarUrl: data.avatar_url,
+        htmlUrl: data.html_url,
+        bio: data.bio ?? undefined,
+        publicRepos: data.public_repos,
+      };
+    } catch (error) {
+      console.error('[v0] Failed to fetch GitHub profile:', error);
+      this.rethrowAuth(error);
+    }
+  }
+
   async registerWebhook(webhookUrl: string): Promise<number> {
     try {
       const response = await this.octokit.rest.repos.createWebhook({
