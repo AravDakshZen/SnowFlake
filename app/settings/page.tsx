@@ -687,21 +687,6 @@ export default function SettingsPage() {
                 {actionLoading === 'repo-switch' && (
                   <div className="mt-2 text-xs text-black/40">Switching repository…</div>
                 )}
-                <div className="mt-4 space-y-3">
-                  <div className="text-xs text-black/40 tracking-widest uppercase mb-1">ACCESSIBLE REPOSITORIES</div>
-                  {githubConfigs.repos.map((repo: any) => {
-                    const isActive = githubConfigs.activeConfig?.owner === repo.owner && githubConfigs.activeConfig?.name === repo.name
-                    return (
-                      <div key={`${repo.owner}/${repo.name}`} className={`p-3 rounded-lg ${isActive ? 'bg-green-50 border border-green-200' : 'bg-black/5'}`}>
-                        <div className="text-sm font-light flex items-center justify-between">
-                          <span>{repo.owner}/{repo.name}</span>
-                          {isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 tracking-widest">ACTIVE</span>}
-                        </div>
-                        {repo.language && <div className="text-xs text-black/40 mt-1">{repo.language}</div>}
-                      </div>
-                    )
-                  })}
-                </div>
               </div>
             ) : null}
 
