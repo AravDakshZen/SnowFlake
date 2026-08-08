@@ -35,10 +35,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Fetch investigations with pagination
+    // Fetch investigations with pagination. LEFT JOINs so investigations
+    // created from automation events (no api_logs row, event_id instead of
+    // log_id) are still listed, not silently dropped by an inner join.
     const investigations = await sql`
       SELECT
         i.id,
+        i.question,
+        i.summary,
         i.root_cause,
         i.affected_file,
         i.confidence,
@@ -47,13 +51,14 @@ export async function GET(request: NextRequest) {
         i.pr_number,
         i.attempt,
         i.created_at,
+        i.event_id,
         c.fingerprint,
         al.endpoint,
         al.method,
         al.status_code
       FROM public.investigations i
-      JOIN public.clusters c ON i.cluster_id = c.id
-      JOIN public.api_logs al ON i.log_id = al.id
+      LEFT JOIN public.clusters c ON i.cluster_id = c.id
+      LEFT JOIN public.api_logs al ON i.log_id = al.id
       WHERE i.project_id = ${projectId}
       ORDER BY i.created_at DESC
       LIMIT ${limit}

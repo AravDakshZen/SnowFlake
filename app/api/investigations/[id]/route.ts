@@ -19,6 +19,8 @@ export async function GET(
     const investigation = await sql`
       SELECT
         i.id,
+        i.question,
+        i.summary,
         i.root_cause,
         i.affected_file,
         i.affected_line,
@@ -31,6 +33,7 @@ export async function GET(
         i.explanation,
         i.fix_strategy,
         i.created_at,
+        i.event_id,
         al.stack_trace,
         al.request_body,
         al.response_body,
