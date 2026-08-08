@@ -34,13 +34,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Test the LLM connection
+    let latencyMs: number;
     try {
       const llmProvider = await getLLMProvider(provider, apiKey, model, baseUrl);
       const startTime = Date.now();
       await llmProvider.isAvailable();
-      const latencyMs = Date.now() - startTime;
+      latencyMs = Date.now() - startTime;
+    } catch (error) {
+      console.error('[v0] LLM connection test failed:', error);
+      return NextResponse.json(
+        { error: 'Failed to connect to LLM provider' },
+        { status: 400 }
+      );
+    }
 
+    try {
       // Encrypt API key
       const encryptedKey = encryptValue(apiKey);
 
@@ -86,10 +94,10 @@ export async function POST(request: NextRequest) {
         latencyMs,
       });
     } catch (error) {
-      console.error('[v0] LLM connection test failed:', error);
+      console.error('[v0] LLM config save failed:', error);
       return NextResponse.json(
-        { error: 'Failed to connect to LLM provider' },
-        { status: 400 }
+        { error: 'Failed to save LLM configuration' },
+        { status: 500 }
       );
     }
   } catch (error) {
