@@ -613,6 +613,7 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
     let analysis: AnalysisResult | null = null;
     let usedConfig: LLMConfigRow | null = null;
     let lastError: unknown = null;
+    const providerFailures: string[] = [];
 
     const stackContext = [
       `Repository: ${event.repo_owner}/${event.repo_name}`,
@@ -646,6 +647,8 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
         break;
       } catch (error) {
         lastError = error;
+        const failureDetail = error instanceof Error ? error.message : 'Unknown error';
+        providerFailures.push(`${config.provider}/${config.model}: ${failureDetail}`);
         console.error(`[v0] Event analysis failed (${config.provider}/${config.model}):`, error);
 
         const remainingConfigs = configs.filter((c) => c !== config);
@@ -665,6 +668,11 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
     }
 
     if (!analysis) {
+      if (providerFailures.length > 0) {
+        throw new Error(
+          `All LLM providers failed — ${providerFailures.join('; ')}`
+        );
+      }
       throw lastError instanceof Error ? lastError : new Error('All LLM providers failed');
     }
 

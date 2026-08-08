@@ -1,6 +1,6 @@
 import type { AnalysisResult } from './index'
 
-export const LLM_TIMEOUT_MS = 30000
+export const LLM_TIMEOUT_MS = 90000
 
 export function parseAnalysisText(text: string): AnalysisResult {
   let cleaned = text.trim()
