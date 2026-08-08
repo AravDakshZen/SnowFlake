@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { toastSuccess, toastError } from '@/lib/toasts'
 
 // Only the credential/existence signal is genericized — naming it would confirm
 // whether an email is registered. Errors the user can act on are passed through,
@@ -52,10 +53,13 @@ export default function Page() {
         password,
       })
       if (error) throw error
+      toastSuccess('Logged in', 'Welcome back.')
       router.push('/')
     } catch (error: unknown) {
       console.error('Login error:', error)
-      setError(loginErrorMessage(error))
+      const message = loginErrorMessage(error)
+      setError(message)
+      toastError('Could not log in', message)
     } finally {
       setIsLoading(false)
     }

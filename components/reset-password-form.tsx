@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { AuthShell } from '@/components/auth-shell'
+import { toastSuccess, toastError } from '@/lib/toasts'
 
 export function ResetPasswordForm() {
   const searchParams = useSearchParams()
@@ -20,7 +21,9 @@ export function ResetPasswordForm() {
     setError('')
     setMessage('')
     if (password.length < 8 || password !== confirm) {
-      setError(password !== confirm ? 'Passwords do not match' : 'Use at least 8 characters')
+      const message = password !== confirm ? 'Passwords do not match' : 'Use at least 8 characters'
+      setError(message)
+      toastError(message)
       return
     }
     setLoading(true)
@@ -33,8 +36,11 @@ export function ResetPasswordForm() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Reset link expired')
       setMessage('Password updated. You can sign in with your new password.')
+      toastSuccess('Password updated', 'You can now sign in with your new password.')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to reset password')
+      const message = cause instanceof Error ? cause.message : 'Unable to reset password'
+      setError(message)
+      toastError('Could not reset password', message)
     } finally {
       setLoading(false)
     }
