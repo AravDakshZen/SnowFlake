@@ -17,6 +17,8 @@ export default function DashboardPage() {
   const [clustersLoading, setClustersLoading] = useState(true)
   const [investigationsLoading, setInvestigationsLoading] = useState(true)
   const [projectId, setProjectId] = useState<string>()
+  const [githubProfile, setGithubProfile] = useState<any>(null)
+  const [githubRepos, setGithubRepos] = useState<any>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -28,6 +30,8 @@ export default function DashboardPage() {
         setProjectId(id)
         if (!id) return
         const query = `?projectId=${encodeURIComponent(id)}`
+        fetch(`/api/github/profile${query}`).then(res => res.json()).then(d => { if (d.profile) setGithubProfile(d.profile) }).catch(() => {})
+        fetch(`/api/github/repos${query}`).then(res => res.json()).then(d => { if (d.repos) setGithubRepos(d.repos) }).catch(() => {})
         Promise.all([
           fetch(`/api/stats${query}`).then(res => res.json()),
           fetch(`/api/clusters${query}`).then(res => res.json()),
@@ -63,12 +67,20 @@ export default function DashboardPage() {
               Snowflake Dashboard
             </h1>
           </div>
-          <a 
-            href="/settings" 
-            className="px-4 py-2 text-xs tracking-widest font-light bg-black/5 hover:bg-black/10 rounded-lg transition-colors"
-          >
-            SETTINGS
-          </a>
+          <div className="flex items-center gap-3">
+            <a 
+              href="/" 
+              className="px-4 py-2 text-xs tracking-widest font-light bg-black/5 hover:bg-black/10 rounded-lg transition-colors"
+            >
+              HOME
+            </a>
+            <a 
+              href="/settings" 
+              className="px-4 py-2 text-xs tracking-widest font-light bg-black/5 hover:bg-black/10 rounded-lg transition-colors"
+            >
+              SETTINGS
+            </a>
+          </div>
         </div>
       </header>
 
@@ -99,6 +111,60 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* GitHub Integration */}
+        <section className="mb-16">
+          <RevealText className="text-3xl md:text-4xl font-light tracking-tight mb-8">
+            GitHub Integration
+          </RevealText>
+          
+          <div className="p-6 rounded-2xl border border-black/[0.07] bg-white">
+            {githubProfile ? (
+              <div>
+                <div className="flex items-center gap-4 mb-6">
+                  {githubProfile.avatarUrl && (
+                    <img src={githubProfile.avatarUrl} alt={githubProfile.login} className="size-12 rounded-full" />
+                  )}
+                  <div>
+                    <div className="text-lg font-light">{githubProfile.name || githubProfile.login}</div>
+                    <div className="text-xs text-black/40">@{githubProfile.login}</div>
+                  </div>
+                  {githubProfile.htmlUrl && (
+                    <a href={githubProfile.htmlUrl} target="_blank" rel="noreferrer" className="ml-auto text-xs tracking-widest text-black/40 hover:text-black transition-colors">
+                      VIEW PROFILE →
+                    </a>
+                  )}
+                </div>
+                {githubProfile.bio && <p className="text-sm text-black/60 mb-4">{githubProfile.bio}</p>}
+                {githubRepos?.length ? (
+                  <div>
+                    <div className="text-xs text-black/40 tracking-widest uppercase mb-3">CONNECTED REPOSITORIES</div>
+                    <div className="flex flex-wrap gap-2">
+                      {githubRepos.slice(0, 6).map((repo: any) => (
+                        <span key={`${repo.owner}/${repo.name}`} className="px-3 py-1.5 rounded-lg bg-black/5 text-xs font-mono">
+                          {repo.owner}/{repo.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-black/60 mb-2">Connect your GitHub account to enable automatic PR creation and CI integration.</p>
+                  <p className="text-xs text-black/40">Your profile and repositories will appear here once connected.</p>
+                </div>
+                <a
+                  href="/settings"
+                  className="flex-shrink-0 px-4 py-2 text-xs tracking-widest font-light bg-black/5 hover:bg-black/10 rounded-lg transition-colors"
+                >
+                  CONNECT GITHUB →
+                </a>
+              </div>
+            )}
           </div>
         </section>
 
