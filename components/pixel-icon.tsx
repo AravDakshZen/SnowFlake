@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react"
 // Each icon is a 12×12 pixel grid animated at 60fps with RAF
 // Colors are black at varying opacity to match the light theme
 
-type IconType = "platform" | "agents" | "workflow" | "integrations" | "pricing"
+export type IconType = "platform" | "agents" | "workflow" | "integrations" | "pricing"
 
 interface PixelIconProps {
   type: IconType
