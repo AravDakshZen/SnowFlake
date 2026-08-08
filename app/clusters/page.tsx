@@ -14,11 +14,14 @@ export default function ClustersPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/clusters')
+    fetch('/api/project/current')
       .then(res => res.json())
       .then(data => {
-        setClusters(data)
-        setIsLoading(false)
+        const id = data.project?.id as string | undefined
+        if (!id) { setIsLoading(false); return }
+        return fetch(`/api/clusters?projectId=${encodeURIComponent(id)}`)
+          .then(res => res.json())
+          .then(clusterData => { setClusters(clusterData); setIsLoading(false) })
       })
       .catch(() => { setIsLoading(false); toastError('Could not load error clusters', 'Please try again in a moment.') })
   }, [])

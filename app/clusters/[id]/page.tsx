@@ -12,15 +12,23 @@ export default function ClusterDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (id) {
-      fetch(`/api/clusters?id=${id}`)
-        .then(res => res.json())
-        .then(data => {
-          setCluster(data)
-          setIsLoading(false)
-        })
-        .catch(() => setIsLoading(false))
-    }
+    if (!id) return
+    fetch('/api/project/current')
+      .then(res => res.json())
+      .then(data => {
+        const projectId = data.project?.id as string | undefined
+        if (!projectId) { setIsLoading(false); return }
+        return fetch(`/api/clusters?projectId=${encodeURIComponent(projectId)}`)
+          .then(res => res.json())
+          .then((data) => {
+            const found = Array.isArray(data.clusters)
+              ? data.clusters.find((c: any) => c.id === id)
+              : undefined
+            setCluster(found ? { data: [found] } : null)
+            setIsLoading(false)
+          })
+      })
+      .catch(() => setIsLoading(false))
   }, [id])
 
   const clusterData = cluster?.data?.[0]

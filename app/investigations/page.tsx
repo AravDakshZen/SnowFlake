@@ -13,11 +13,14 @@ export default function InvestigationsPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/investigations')
+    fetch('/api/project/current')
       .then(res => res.json())
       .then(data => {
-        setInvestigations(data)
-        setIsLoading(false)
+        const id = data.project?.id as string | undefined
+        if (!id) { setIsLoading(false); return }
+        return fetch(`/api/investigations?projectId=${encodeURIComponent(id)}`)
+          .then(res => res.json())
+          .then(invData => { setInvestigations(invData); setIsLoading(false) })
       })
       .catch(() => { setIsLoading(false); toastError('Could not load investigations', 'Please try again in a moment.') })
   }, [])
