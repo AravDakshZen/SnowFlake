@@ -3,6 +3,8 @@ import { getSql } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import crypto from 'crypto';
 
+type Sql = ReturnType<typeof getSql>;
+
 function generateApiKey(): string {
   const random = crypto.randomBytes(32).toString('hex');
   return `sf_live_${random}`;
@@ -10,6 +12,22 @@ function generateApiKey(): string {
 
 function maskApiKey(apiKey: string): string {
   return apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 4);
+}
+
+async function fetchKeys(sql: Sql, projectId: string) {
+  const rows = await sql`
+    SELECT id, key_prefix, created_at, revoked_at
+    FROM public.api_keys
+    WHERE project_id = ${projectId}
+    ORDER BY created_at DESC
+  `;
+  return rows.map((key) => ({
+    id: key.id,
+    keyPrefix: key.key_prefix,
+    maskedKey: maskApiKey(key.key_prefix),
+    createdAt: key.created_at,
+    revokedAt: key.revoked_at,
+  }));
 }
 
 export async function GET(request: NextRequest) {
@@ -43,25 +61,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Check if API key exists
-    const apiKey = await sql`
-      SELECT ak.key_prefix, ak.created_at
-      FROM public.api_keys ak
-      WHERE ak.project_id = ${projectId}
-      LIMIT 1
-    `;
-
-    if (apiKey.length === 0) {
-      return NextResponse.json({
-        keyPrefix: null,
-        message: 'No API key generated yet',
-      });
-    }
-
     return NextResponse.json({
-      keyPrefix: apiKey[0].key_prefix,
-      maskedKey: maskApiKey(apiKey[0].key_prefix),
-      createdAt: apiKey[0].created_at,
+      keys: await fetchKeys(sql, projectId),
     });
   } catch (error) {
     console.error('[v0] API key fetch error:', error);
@@ -133,10 +134,34 @@ export async function POST(request: NextRequest) {
         RETURNING key_prefix
       `;
 
+      const keys = await fetchKeys(sql, projectId);
+
       return NextResponse.json({
         apiKey: newKey,
         maskedKey: maskApiKey(newKey),
+        keys,
         message: 'API key regenerated. Store it safely – you won\'t be able to see it again.',
+      });
+    }
+
+    if (action === 'revoke') {
+      const { keyId } = body;
+      if (!keyId) {
+        return NextResponse.json(
+          { error: 'keyId is required' },
+          { status: 400 }
+        );
+      }
+
+      await sql`
+        UPDATE public.api_keys
+        SET revoked_at = NOW()
+        WHERE id = ${keyId}
+        AND project_id = ${projectId}
+      `;
+
+      return NextResponse.json({
+        keys: await fetchKeys(sql, projectId),
       });
     }
 

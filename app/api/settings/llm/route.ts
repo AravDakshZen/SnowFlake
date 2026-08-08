@@ -120,19 +120,40 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Fetch LLM configs (without decrypted keys)
+    // Fetch LLM configs (with masked keys for display)
     const configs = await sql`
       SELECT
         id,
         provider,
         model,
         base_url,
+        encrypted_key,
         created_at
       FROM public.llm_configs
       WHERE project_id = ${projectId}
     `;
 
-    return NextResponse.json({ configs });
+    const maskedConfigs = configs.map((config: any) => {
+      let maskedKey: string | null = null
+      if (config.encrypted_key) {
+        try {
+          const plain = decryptValue(config.encrypted_key)
+          maskedKey = plain.length > 10 ? `${plain.slice(0, 6)}...${plain.slice(-4)}` : '••••••••'
+        } catch {
+          maskedKey = null
+        }
+      }
+      return {
+        id: config.id,
+        provider: config.provider,
+        model: config.model,
+        base_url: config.base_url,
+        created_at: config.created_at,
+        maskedKey,
+      }
+    })
+
+    return NextResponse.json({ configs: maskedConfigs });
   } catch (error) {
     console.error('[v0] LLM settings fetch error:', error);
     return NextResponse.json(
