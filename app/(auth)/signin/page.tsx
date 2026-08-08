@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Github, Chrome, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { AuthShell } from '@/components/auth-shell'
+import { GoogleIcon, GitHubIcon } from '@/components/brand-icons'
 import { toastSuccess, toastError, toastInfo } from '@/lib/toasts'
 
 export default function SignInPage() {
@@ -43,8 +44,8 @@ export default function SignInPage() {
   return (
     <AuthShell eyebrow="Welcome back" title="Sign in to Tracewise" description="Your production signal is waiting. Continue to the reliability workspace.">
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <a href="/api/auth/oauth?provider=github" onClick={() => toastInfo('Redirecting to GitHub', 'Authorize the app to continue.')} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><Github className="size-4" /> GitHub</a>
-        <a href="/api/auth/oauth?provider=google" onClick={() => toastInfo('Redirecting to Google', 'Authorize the app to continue.')} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><Chrome className="size-4" /> Google</a>
+        <a href="/api/auth/oauth?provider=github" onClick={() => toastInfo('Redirecting to GitHub', 'Authorize the app to continue.')} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><GitHubIcon className="size-4" /> GitHub</a>
+        <a href="/api/auth/oauth?provider=google" onClick={() => toastInfo('Redirecting to Google', 'Authorize the app to continue.')} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><GoogleIcon className="size-4" /> Google</a>
       </div>
       <div className="my-7 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /><span>OR CONTINUE WITH EMAIL</span><span className="h-px flex-1 bg-border" /></div>
       <form onSubmit={handleSignIn} className="flex flex-col gap-4">

@@ -76,9 +76,9 @@ export async function GET(request: NextRequest) {
 
     const sql = getSql();
 
-    // Get GitHub token if connected
+    // Get GitHub token and active repo if connected
     const gitHubConfig = await sql`
-      SELECT gc.encrypted_token
+      SELECT gc.encrypted_token, gc.repo_owner, gc.repo_name, gc.default_branch
       FROM public.github_configs gc
       JOIN public.projects p ON gc.project_id = p.id
       WHERE p.id = ${projectId}
@@ -100,7 +100,14 @@ export async function GET(request: NextRequest) {
 
     try {
       const repos = await github.listRepos();
-      return NextResponse.json({ repos });
+      return NextResponse.json({
+        repos,
+        activeConfig: {
+          owner: gitHubConfig[0].repo_owner,
+          name: gitHubConfig[0].repo_name,
+          defaultBranch: gitHubConfig[0].default_branch,
+        },
+      });
     } catch (error) {
       console.error('[v0] Error fetching repos:', error);
       return NextResponse.json(
@@ -110,6 +117,61 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('[v0] GitHub repos route error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { projectId, repoOwner, repoName, defaultBranch = 'main' } = body;
+
+    if (!projectId || !repoOwner || !repoName) {
+      return NextResponse.json(
+        { error: 'projectId, repoOwner and repoName are required' },
+        { status: 400 }
+      );
+    }
+
+    const sql = getSql();
+
+    const updated = await sql`
+      UPDATE public.github_configs
+      SET repo_owner = ${repoOwner},
+        repo_name = ${repoName},
+        default_branch = ${defaultBranch}
+      WHERE project_id = ${projectId}
+        AND user_id = ${session.user.id}
+      RETURNING id, repo_owner, repo_name, default_branch
+    `;
+
+    if (updated.length === 0) {
+      return NextResponse.json(
+        { error: 'GitHub is not connected to this project' },
+        { status: 400 }
+      );
+    }
+
+    await logAudit(
+      projectId,
+      'repo_connected',
+      'github_config',
+      updated[0].id,
+      { repoOwner, repoName, defaultBranch },
+      session.user.id
+    );
+
+    return NextResponse.json({ config: updated[0] });
+  } catch (error) {
+    console.error('[v0] GitHub repo switch error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

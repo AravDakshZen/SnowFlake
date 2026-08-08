@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
-import { toastError } from '@/lib/toasts'
+import { toastError, toastSuccess } from '@/lib/toasts'
+import { DiffView } from '@/components/diff-viewer'
 
 export default function InvestigationDetailPage() {
   const router = useRouter()
@@ -11,6 +12,9 @@ export default function InvestigationDetailPage() {
   const id = params.id as string
   const [investigation, setInvestigation] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isEditingPatch, setIsEditingPatch] = useState(false)
+  const [patchDraft, setPatchDraft] = useState('')
+  const [isSavingPatch, setIsSavingPatch] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -32,7 +36,7 @@ export default function InvestigationDetailPage() {
     )
   }
 
-  if (!investigation?.data) {
+  if (!investigation?.investigation) {
     return (
       <div className="bg-[#F5F4F0] text-[#111] min-h-screen font-sans antialiased flex items-center justify-center">
         <div className="text-center">
@@ -48,7 +52,36 @@ export default function InvestigationDetailPage() {
     )
   }
 
-  const inv = investigation.data
+  const inv = investigation.investigation
+
+  const handleSavePatch = async () => {
+    setIsSavingPatch(true)
+    try {
+      const res = await fetch(`/api/investigations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patchDiff: patchDraft }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to save patch')
+      }
+      const updated = await res.json()
+      setInvestigation((prev: any) => ({
+        ...prev,
+        investigation: {
+          ...prev.investigation,
+          patch_diff: updated.patch_diff,
+        },
+      }))
+      setIsEditingPatch(false)
+      toastSuccess('Patch saved', 'The updated patch will be used for the pull request.')
+    } catch (error: any) {
+      toastError('Could not save patch', error.message || 'Please try again.')
+    } finally {
+      setIsSavingPatch(false)
+    }
+  }
 
   return (
     <div className="bg-[#F5F4F0] text-[#111] min-h-screen font-sans antialiased">
@@ -114,7 +147,25 @@ export default function InvestigationDetailPage() {
         {/* Fix Details */}
         {(inv.affected_file || inv.patch_diff) && (
           <section className="mb-12">
-            <h2 className="text-xl font-light tracking-tight mb-4">Fix Details</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-light tracking-tight">Fix Details</h2>
+              {inv.patch_diff && (
+                <button
+                  onClick={() => {
+                    if (isEditingPatch) {
+                      setIsEditingPatch(false)
+                      setPatchDraft(inv.patch_diff)
+                    } else {
+                      setPatchDraft(inv.patch_diff)
+                      setIsEditingPatch(true)
+                    }
+                  }}
+                  className="text-xs tracking-widest px-4 py-2 rounded-lg border border-black/10 hover:bg-black hover:text-white transition-colors"
+                >
+                  {isEditingPatch ? 'CANCEL' : 'EDIT PATCH'}
+                </button>
+              )}
+            </div>
             
             {inv.affected_file && (
               <div className="mb-4 p-4 rounded-xl border border-black/[0.07] bg-white font-mono text-xs">
@@ -125,10 +176,31 @@ export default function InvestigationDetailPage() {
 
             {inv.patch_diff && (
               <div className="p-4 rounded-xl border border-black/[0.07] bg-white">
-                <div className="text-xs text-black/40 mb-3 tracking-widest uppercase">Patch</div>
-                <pre className="text-xs overflow-auto bg-black/[0.04] p-3 rounded border border-black/5 font-mono">
-                  {inv.patch_diff}
-                </pre>
+                <div className="text-xs text-black/40 mb-3 tracking-widest uppercase">
+                  {isEditingPatch ? 'Edit Patch' : 'Changes'}
+                </div>
+
+                {isEditingPatch ? (
+                  <div>
+                    <textarea
+                      value={patchDraft}
+                      onChange={(e) => setPatchDraft(e.target.value)}
+                      spellCheck={false}
+                      className="w-full min-h-[320px] text-xs font-mono bg-black/[0.04] p-3 rounded border border-black/10 focus:outline-none focus:border-black/30 resize-y leading-relaxed"
+                    />
+                    <div className="flex justify-end mt-3">
+                      <button
+                        onClick={handleSavePatch}
+                        disabled={isSavingPatch}
+                        className="text-xs tracking-widest px-5 py-2 rounded-lg bg-black text-white hover:bg-black/85 transition-colors disabled:opacity-50"
+                      >
+                        {isSavingPatch ? 'SAVING...' : 'SAVE PATCH'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <DiffView patch={inv.patch_diff} />
+                )}
               </div>
             )}
           </section>

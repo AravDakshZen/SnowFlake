@@ -100,10 +100,15 @@ export async function PATCH(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Update investigation status
+    // Update investigation status / editable patch fields
     const updated = await sql`
       UPDATE public.investigations
-      SET status = ${body.status}
+      SET status = ${body.status ?? 'in_progress'},
+        root_cause = COALESCE(${body.rootCause ?? null}, root_cause),
+        affected_file = COALESCE(${body.affectedFile ?? null}, affected_file),
+        affected_line = COALESCE(${body.affectedLine ?? null}, affected_line),
+        patch_diff = COALESCE(${body.patchDiff ?? null}, patch_diff),
+        explanation = COALESCE(${body.explanation ?? null}, explanation)
       WHERE id = ${id}
       RETURNING *
     `;

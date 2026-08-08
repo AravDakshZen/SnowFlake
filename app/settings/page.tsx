@@ -10,7 +10,7 @@ import { toastSuccess, toastError, toastInfo, toastLoading } from '@/lib/toasts'
 export default function SettingsPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('llm')
-  const [loading, setLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [llmConfigs, setLLMConfigs] = useState<any>(null)
   const [alertConfigs, setAlertConfigs] = useState<any>(null)
   const [githubConfigs, setGithubConfigs] = useState<any>(null)
@@ -85,7 +85,7 @@ export default function SettingsPage() {
   const handleLLMSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
-    setLoading(true)
+    setActionLoading('llm')
     
     const formData = new FormData(form)
     const data = {
@@ -116,14 +116,14 @@ export default function SettingsPage() {
       setFeedback(message)
       toastError('Could not save LLM configuration', message)
     } finally {
-      setLoading(false)
+      setActionLoading(null)
     }
   }
 
   const handleAlertSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
-    setLoading(true)
+    setActionLoading('alerts')
 
     const formData = new FormData(form)
     const data = {
@@ -150,14 +150,14 @@ export default function SettingsPage() {
       setFeedback(message)
       toastError('Could not save alert configuration', message)
     } finally {
-      setLoading(false)
+      setActionLoading(null)
     }
   }
 
   const handleProfileSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
-    setLoading(true)
+    setActionLoading('profile')
     const formData = new FormData(form)
     const name = String(formData.get('name') || '').trim()
     const avatarUrl = String(formData.get('avatarUrl') || '').trim()
@@ -175,14 +175,14 @@ export default function SettingsPage() {
       const message = error instanceof Error ? error.message : 'Error saving profile'
       toastError('Could not save profile', message)
     } finally {
-      setLoading(false)
+      setActionLoading(null)
     }
   }
 
   const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
-    setLoading(true)
+    setActionLoading('password')
     const formData = new FormData(form)
     const currentPassword = String(formData.get('currentPassword') || '')
     const newPassword = String(formData.get('newPassword') || '')
@@ -200,14 +200,14 @@ export default function SettingsPage() {
       const message = error instanceof Error ? error.message : 'Error changing password'
       toastError('Could not change password', message)
     } finally {
-      setLoading(false)
+      setActionLoading(null)
     }
   }
 
   const handleChangeEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
-    setLoading(true)
+    setActionLoading('email')
     const formData = new FormData(form)
     const email = String(formData.get('email') || '').trim()
     try {
@@ -224,13 +224,13 @@ export default function SettingsPage() {
       const message = error instanceof Error ? error.message : 'Error changing email'
       toastError('Could not change email', message)
     } finally {
-      setLoading(false)
+      setActionLoading(null)
     }
   }
 
   const handleDeleteAccount = async () => {
     if (!confirm('Delete your account and all associated data? This cannot be undone.')) return
-    setLoading(true)
+    setActionLoading('delete')
     try {
       const response = await fetch('/api/auth/delete-account', { method: 'DELETE' })
       const result = await response.json().catch(() => ({}))
@@ -239,13 +239,13 @@ export default function SettingsPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error deleting account'
       toastError('Could not delete account', message)
-      setLoading(false)
+      setActionLoading(null)
     }
   }
 
   const handleGenerateKey = async () => {
     if (!projectId) { setFeedback('Create a project before generating an API key.'); return toastError('No project yet', 'Create a project before generating an API key.') }
-    setLoading(true)
+    setActionLoading('apikey')
     try {
       const response = await fetch('/api/project/apikey', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, action: 'regenerate' }) })
       const result = await response.json()
@@ -258,7 +258,7 @@ export default function SettingsPage() {
       const message = error instanceof Error ? error.message : 'Unable to generate API key'
       setFeedback(message)
       toastError('Could not generate API key', message)
-    } finally { setLoading(false) }
+    } finally { setActionLoading(null) }
   }
 
   const handleCopyKey = async () => {
@@ -273,7 +273,7 @@ export default function SettingsPage() {
 
   const handleRevokeKey = async (keyId: string) => {
     if (!projectId) return
-    setLoading(true)
+    setActionLoading('revoke')
     try {
       const response = await fetch('/api/project/apikey', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, action: 'revoke', keyId }) })
       const result = await response.json()
@@ -283,13 +283,40 @@ export default function SettingsPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to revoke key'
       toastError('Could not revoke key', message)
-    } finally { setLoading(false) }
+    } finally { setActionLoading(null) }
+  }
+
+  const handleRepoSwitch = async (owner: string, name: string) => {
+    if (!projectId) return
+    setActionLoading('repo-switch')
+    try {
+      const response = await fetch('/api/github/repos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, repoOwner: owner, repoName: name }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Unable to switch repository')
+      setGithubConfigs((prev: any) => ({
+        ...prev,
+        activeConfig: {
+          owner,
+          name,
+          defaultBranch: result.config?.default_branch ?? prev?.activeConfig?.defaultBranch ?? 'main',
+        },
+      }))
+      setFeedback(`Active repository switched to ${owner}/${name}.`)
+      toastSuccess('Repository switched', `Auto-fix PRs will now target ${owner}/${name}.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to switch repository'
+      toastError('Could not switch repository', message)
+    } finally { setActionLoading(null) }
   }
 
   const handleGitHubDisconnect = async () => {
     if (!projectId) return
     if (!confirm('Disconnect GitHub from this project? Auto-fix PR creation and CI integration will stop.')) return
-    setLoading(true)
+    setActionLoading('github')
     try {
       const response = await fetch(`/api/github/repos?projectId=${encodeURIComponent(projectId)}`, { method: 'DELETE' })
       const result = await response.json()
@@ -300,7 +327,7 @@ export default function SettingsPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to disconnect GitHub'
       toastError('Could not disconnect GitHub', message)
-    } finally { setLoading(false) }
+    } finally { setActionLoading(null) }
   }
 
   if (!mounted) return null
@@ -385,10 +412,10 @@ export default function SettingsPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={actionLoading === 'llm'}
                 className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
               >
-                {loading ? 'SAVING...' : 'SAVE CONFIGURATION'}
+                {actionLoading === 'llm' ? 'SAVING...' : 'SAVE CONFIGURATION'}
               </button>
             </form>
 
@@ -424,11 +451,11 @@ export default function SettingsPage() {
                     <span className="px-3 py-1.5 rounded-lg bg-green-100 text-green-700 text-xs font-light tracking-widest">CONNECTED</span>
                     <button
                       type="button"
-                      disabled={loading}
+                      disabled={actionLoading === 'github'}
                       onClick={handleGitHubDisconnect}
                       className="px-6 py-3 rounded-xl border border-red-900/20 bg-red-50 text-red-800 text-sm font-light tracking-widest hover:bg-red-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {loading ? 'DISCONNECTING…' : 'LOGOUT FROM THIS ACCOUNT'}
+                      {actionLoading === 'github' ? 'DISCONNECTING…' : 'LOGOUT FROM THIS ACCOUNT'}
                     </button>
                   </div>
                 </div>
@@ -437,14 +464,14 @@ export default function SettingsPage() {
                   <p className="text-sm text-black/60 mb-4">
                     Connect your GitHub account to enable automatic PR creation and CI integration.
                   </p>
-                  <button type="button" disabled={!projectId || loading} onClick={async () => {
+                  <button type="button" disabled={!projectId || actionLoading === 'github-connect'} onClick={async () => {
                     if (!projectId) { setFeedback('Create a project before connecting GitHub.'); return toastError('No project yet', 'Create a project before connecting GitHub.') }
-                    setLoading(true)
+                    setActionLoading('github-connect')
                     setFeedback('Opening GitHub authorization…')
                     toastInfo('Opening GitHub authorization', 'You will be redirected to GitHub to grant repo access.')
                     window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}`
                   }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
-                    {loading ? 'OPENING GITHUB…' : 'CONNECT GITHUB'}
+                    {actionLoading === 'github-connect' ? 'OPENING GITHUB…' : 'CONNECT GITHUB'}
                   </button>
                 </div>
               )}
@@ -452,14 +479,42 @@ export default function SettingsPage() {
 
             {githubConfigs?.repos?.length ? (
               <div className="mt-8 p-6 rounded-xl border border-black/[0.07] bg-white">
-                <h3 className="text-sm font-light tracking-widest mb-3">ACCESSIBLE REPOSITORIES</h3>
-                <div className="space-y-3">
+                <h3 className="text-sm font-light tracking-widest mb-3">TARGET REPOSITORY</h3>
+                <p className="text-xs text-black/40 mb-3">
+                  Auto-fix PRs and CI integration run against the selected repository.
+                </p>
+                <select
+                  value={githubConfigs.activeConfig ? `${githubConfigs.activeConfig.owner}/${githubConfigs.activeConfig.name}` : ''}
+                  disabled={actionLoading === 'repo-switch'}
+                  onChange={(e) => {
+                    const [owner, name] = e.target.value.split('/')
+                    if (owner && name) handleRepoSwitch(owner, name)
+                  }}
+                  className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20 disabled:opacity-50"
+                >
                   {githubConfigs.repos.map((repo: any) => (
-                    <div key={`${repo.owner}/${repo.name}`} className="p-3 rounded-lg bg-black/5">
-                      <div className="text-sm font-light">{repo.owner}/{repo.name}</div>
-                      {repo.language && <div className="text-xs text-black/40 mt-1">{repo.language}</div>}
-                    </div>
+                    <option key={`${repo.owner}/${repo.name}`} value={`${repo.owner}/${repo.name}`}>
+                      {repo.owner}/{repo.name}
+                    </option>
                   ))}
+                </select>
+                {actionLoading === 'repo-switch' && (
+                  <div className="mt-2 text-xs text-black/40">Switching repository…</div>
+                )}
+                <div className="mt-4 space-y-3">
+                  <div className="text-xs text-black/40 tracking-widest uppercase mb-1">ACCESSIBLE REPOSITORIES</div>
+                  {githubConfigs.repos.map((repo: any) => {
+                    const isActive = githubConfigs.activeConfig?.owner === repo.owner && githubConfigs.activeConfig?.name === repo.name
+                    return (
+                      <div key={`${repo.owner}/${repo.name}`} className={`p-3 rounded-lg ${isActive ? 'bg-green-50 border border-green-200' : 'bg-black/5'}`}>
+                        <div className="text-sm font-light flex items-center justify-between">
+                          <span>{repo.owner}/{repo.name}</span>
+                          {isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 tracking-widest">ACTIVE</span>}
+                        </div>
+                        {repo.language && <div className="text-xs text-black/40 mt-1">{repo.language}</div>}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             ) : null}
@@ -495,10 +550,10 @@ export default function SettingsPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={actionLoading === 'alerts'}
                 className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
               >
-                {loading ? 'SAVING...' : 'SAVE ALERTS'}
+                {actionLoading === 'alerts' ? 'SAVING...' : 'SAVE ALERTS'}
               </button>
             </form>
           </section>
@@ -535,8 +590,8 @@ export default function SettingsPage() {
                 Generate a key, then copy the full value immediately. The full key is never stored or shown again.
               </p>
               <div className="flex flex-wrap gap-3">
-                <button type="button" disabled={!projectId || loading} onClick={handleGenerateKey} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
-                  {loading ? 'GENERATING…' : 'GENERATE / REGENERATE KEY'}
+                <button type="button" disabled={!projectId || actionLoading === 'apikey'} onClick={handleGenerateKey} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
+                  {actionLoading === 'apikey' ? 'GENERATING…' : 'GENERATE / REGENERATE KEY'}
                 </button>
               </div>
             </div>
@@ -556,7 +611,7 @@ export default function SettingsPage() {
                       {!key.revokedAt && (
                         <button
                           type="button"
-                          disabled={loading}
+                          disabled={actionLoading === 'revoke'}
                           onClick={() => handleRevokeKey(key.id)}
                           className="flex-shrink-0 px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-light tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50"
                         >
@@ -589,10 +644,10 @@ export default function SettingsPage() {
               <div className="text-xs text-black/40">Signed in as {profile.email}</div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={actionLoading === 'profile'}
                 className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
               >
-                {loading ? 'SAVING...' : 'SAVE PROFILE'}
+                {actionLoading === 'profile' ? 'SAVING...' : 'SAVE PROFILE'}
               </button>
             </form>
 
@@ -612,10 +667,10 @@ export default function SettingsPage() {
               </div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={actionLoading === 'password'}
                 className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
               >
-                {loading ? 'UPDATING...' : 'UPDATE PASSWORD'}
+                {actionLoading === 'password' ? 'UPDATING...' : 'UPDATE PASSWORD'}
               </button>
             </form>
 
@@ -627,10 +682,10 @@ export default function SettingsPage() {
               </div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={actionLoading === 'email'}
                 className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
               >
-                {loading ? 'SENDING...' : 'SEND CONFIRMATION'}
+                {actionLoading === 'email' ? 'SENDING...' : 'SEND CONFIRMATION'}
               </button>
             </form>
 
@@ -641,11 +696,11 @@ export default function SettingsPage() {
               </p>
               <button
                 type="button"
-                disabled={loading}
+                disabled={actionLoading === 'delete'}
                 onClick={handleDeleteAccount}
                 className="px-6 py-3 rounded-xl bg-red-600 text-white text-sm font-light tracking-widest hover:bg-red-700 transition-colors disabled:opacity-50"
               >
-                {loading ? 'DELETING...' : 'DELETE ACCOUNT'}
+                {actionLoading === 'delete' ? 'DELETING...' : 'DELETE ACCOUNT'}
               </button>
             </div>
           </section>

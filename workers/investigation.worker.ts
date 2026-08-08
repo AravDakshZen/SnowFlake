@@ -10,6 +10,48 @@ import { resolveAppUrl } from '@/lib/config';
 
 const APP_URL = resolveAppUrl();
 
+const STACK_FRAME_FILE_RE = /\(?(.+?\.(?:ts|tsx|js|jsx|mjs|cjs|py|rb|go|java|php))(?::\d+){0,2}\)?$/;
+
+export function extractFilePathsFromStackTrace(
+  stackTrace: string
+): string[] {
+  if (!stackTrace) return [];
+
+  const filePaths: string[] = [];
+  const seen = new Set<string>();
+
+  for (const line of stackTrace.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || !trimmed.includes(' at ')) continue;
+
+    const match = trimmed.match(STACK_FRAME_FILE_RE);
+    if (!match) continue;
+
+    let filePath = match[1];
+    if (filePath.startsWith('file://')) {
+      filePath = filePath.slice('file://'.length);
+    }
+    if (filePath.startsWith('/')) {
+      filePath = filePath.slice(1);
+    }
+    const segments = filePath.split('/');
+    if (segments.length > 1 && segments[0].includes(':')) {
+      segments.shift();
+    }
+    const nodeModulesIndex = segments.indexOf('node_modules');
+    if (nodeModulesIndex !== -1) {
+      segments.splice(0, nodeModulesIndex + 1);
+    }
+
+    const cleanPath = segments.join('/');
+    if (!cleanPath || seen.has(cleanPath)) continue;
+    seen.add(cleanPath);
+    filePaths.push(cleanPath);
+  }
+
+  return filePaths;
+}
+
 export async function processInvestigation(job: InvestigationJob): Promise<void> {
   const sql = getSql();
 
@@ -83,15 +125,12 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
       const github = new GitHubClient(token, ghConfig.repo_owner, ghConfig.repo_name);
 
       try {
-        // Try to fetch the most relevant files
-        const filesToFetch = [
-          'package.json',
-          'src/index.ts',
-          'src/api.ts',
-          'lib/main.ts',
-        ];
+        const filesToFetch = extractFilePathsFromStackTrace(log.stack_trace);
+        const seen = new Set<string>();
 
-        for (const filePath of filesToFetch) {
+        for (const filePath of [...filesToFetch, 'package.json']) {
+          if (seen.has(filePath)) continue;
+          seen.add(filePath);
           try {
             const file = await github.getFile(filePath, ghConfig.default_branch);
             sourceFiles[file.path] = file.content;
