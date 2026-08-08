@@ -23,7 +23,7 @@ export default function ClustersPage() {
       .catch(() => { setIsLoading(false); toastError('Could not load error clusters', 'Please try again in a moment.') })
   }, [])
 
-  const filtered = clusters?.data?.filter((c: any) => {
+  const filtered = clusters?.clusters?.filter((c: any) => {
     if (filterStatus === 'all') return true
     return c.status === filterStatus
   }) || []

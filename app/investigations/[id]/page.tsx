@@ -134,6 +134,20 @@ export default function InvestigationDetailPage() {
           </section>
         )}
 
+        {/* Completed without a usable fix */}
+        {inv.status === 'completed' && !inv.patch_diff && !inv.pr_url && (
+          <section className="mb-12">
+            <h2 className="text-xl font-light tracking-tight mb-4">Fix Details</h2>
+            <div className="p-6 rounded-2xl border border-amber-200 bg-amber-50">
+              <p className="text-sm leading-relaxed text-amber-900">
+                This investigation completed, but no patch was generated and no pull request was created.
+                The analysis below may still explain the issue; you can restart the investigation or connect
+                GitHub to enable automatic fixes.
+              </p>
+            </div>
+          </section>
+        )}
+
         {/* Root Cause */}
         {inv.root_cause && (
           <section className="mb-12">

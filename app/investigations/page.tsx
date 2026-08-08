@@ -22,7 +22,7 @@ export default function InvestigationsPage() {
       .catch(() => { setIsLoading(false); toastError('Could not load investigations', 'Please try again in a moment.') })
   }, [])
 
-  const filtered = investigations?.data?.filter((inv: any) => {
+  const filtered = investigations?.investigations?.filter((inv: any) => {
     if (filter === 'all') return true
     return inv.status === filter
   }) || []
@@ -46,7 +46,7 @@ export default function InvestigationsPage() {
         
         {/* Filters */}
         <div className="flex gap-3 mb-8">
-          {['all', 'in_progress', 'completed', 'failed'].map((status) => (
+          {['all', 'queued', 'in_progress', 'completed', 'failed'].map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
