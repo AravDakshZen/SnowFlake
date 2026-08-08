@@ -23,6 +23,40 @@ const labels: Record<string, string> = {
   'event:deleted': 'Automation event deleted',
 }
 
+// Replay the recent audit trail as feed events so the feed is not empty
+// right after a page load/refresh (SSE only carries events going forward).
+type AuditLog = {
+  id: string
+  action: string
+  entity_id: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
+const auditToFeedEvent = (log: AuditLog): FeedEvent | null => {
+  const meta = log.metadata ?? {}
+  switch (log.action) {
+    case 'log_ingested':
+      return { id: log.id, type: 'log:received', timestamp: log.created_at, message: `Error log received — ${meta.endpoint ?? ''} (${meta.statusCode ?? ''})` }
+    case 'investigation_queued':
+      return { id: log.id, type: 'investigation:queued', timestamp: log.created_at, investigationId: log.entity_id ?? undefined }
+    case 'investigation_complete':
+      return { id: log.id, type: 'investigation:complete', timestamp: log.created_at, investigationId: log.entity_id ?? undefined, message: `Investigation complete — ${meta.rootCause ?? ''}` }
+    case 'pr_created':
+      return { id: log.id, type: 'pr:created', timestamp: log.created_at, prUrl: (meta.prUrl as string) ?? undefined, message: `Pull request #${meta.prNumber ?? ''} created` }
+    case 'event_created':
+      return { id: log.id, type: 'event:created', timestamp: log.created_at, message: `Event "${meta.name ?? ''}" created` }
+    case 'event_analysis_complete':
+      return { id: log.id, type: 'event:completed', timestamp: log.created_at, investigationId: (meta.investigationId as string) ?? log.entity_id ?? undefined, message: `Event analysis complete — ${meta.rootCause ?? ''}` }
+    case 'reinvestigation_triggered':
+      return { id: log.id, type: 'ci:failed_reinvestigating', timestamp: log.created_at, investigationId: log.entity_id ?? undefined }
+    case 'escalation_fired':
+      return { id: log.id, type: 'alert:escalated', timestamp: log.created_at, investigationId: log.entity_id ?? undefined }
+    default:
+      return null
+  }
+}
+
 function feedHref(event: FeedEvent): string | null {
   if (event.type === 'pr:created') {
     const url = typeof event.prUrl === 'string' ? event.prUrl : null
@@ -46,6 +80,20 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
 
   useEffect(() => {
     if (!projectId) return
+
+    let cancelled = false
+
+    fetch(`/api/audit?projectId=${encodeURIComponent(projectId)}&limit=12`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        const history = Array.isArray(data.logs)
+          ? (data.logs as AuditLog[]).map(auditToFeedEvent).filter((e): e is FeedEvent => e !== null)
+          : []
+        if (history.length) setEvents((current) => [...history, ...current].slice(-24))
+      })
+      .catch(() => {})
+
     const source = new EventSource(`/api/logs/stream?projectId=${encodeURIComponent(projectId)}`)
     source.onopen = () => setConnected(true)
     source.onmessage = (event) => {
@@ -76,7 +124,10 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
       } catch {}
     }
     source.onerror = () => setConnected(false)
-    return () => source.close()
+    return () => {
+      cancelled = true
+      source.close()
+    }
   }, [projectId])
 
   const active = useMemo(() => events.some((event) => event.type.includes('progress') || event.type.includes('queued')), [events])

@@ -54,6 +54,22 @@ export async function GET(request: NextRequest) {
       AND pr_url IS NOT NULL
     `;
 
+    // Get open (active) clusters
+    const activeClustersResult = await sql`
+      SELECT COUNT(*) as total
+      FROM public.clusters
+      WHERE project_id = ${projectId}
+      AND status = 'open'
+    `;
+
+    // Get resolved clusters
+    const resolvedClustersResult = await sql`
+      SELECT COUNT(*) as total
+      FROM public.clusters
+      WHERE project_id = ${projectId}
+      AND status = 'resolved'
+    `;
+
     // Get average confidence
     const confidenceResult = await sql`
       SELECT AVG(confidence) as avg_confidence
@@ -104,6 +120,8 @@ export async function GET(request: NextRequest) {
       totalLogs: logsResult[0].total,
       totalInvestigations: investigationsResult[0].total,
       prsOpened: prsResult[0].total,
+      activeClusters: activeClustersResult[0].total,
+      resolvedIssues: resolvedClustersResult[0].total,
       avgConfidence: Math.round(confidenceResult[0].avg_confidence || 0),
       duplicatesAvoided,
       topFailingEndpoints: topEndpointsResult,

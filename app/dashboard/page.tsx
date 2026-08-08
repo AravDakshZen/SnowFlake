@@ -97,7 +97,7 @@ export default function DashboardPage() {
             {[
               { label: 'Total Logs', value: stats?.totalLogs || 0, icon: '📊' },
               { label: 'Active Clusters', value: stats?.activeClusters || 0, icon: '🔍' },
-              { label: 'Investigations', value: stats?.investigations || 0, icon: '🔬' },
+              { label: 'Investigations', value: stats?.totalInvestigations || 0, icon: '🔬' },
               { label: 'Resolved Issues', value: stats?.resolvedIssues || 0, icon: '✅' },
             ].map((stat) => (
               <div 
