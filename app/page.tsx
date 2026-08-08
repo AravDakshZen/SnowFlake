@@ -79,8 +79,17 @@ function Tag({ children }: { children: React.ReactNode }) {
 export default function SnowflakePage() {
   const [heroReady, setHeroReady] = useState(false)
   const [videoReady, setVideoReady] = useState(false)
+  const [signedIn, setSignedIn] = useState(false)
   const handleIntroDone = useCallback(() => {
     setHeroReady(true)
+  }, [])
+
+  // Route the GET API ACCESS CTA based on auth state: signed-in users go to the
+  // API Key tab to generate a key, everyone else goes to the sign-in page.
+  useEffect(() => {
+    fetch('/api/auth/profile').then(r => r.json()).then((data) => {
+      setSignedIn(Boolean(data?.user))
+    }).catch(() => {})
   }, [])
 
   // Start video zoom slightly before hero content reveals, for seamless overlap
@@ -595,7 +604,7 @@ export default function SnowflakePage() {
           <p className="text-sm text-black/45 leading-relaxed mb-10">
             Give your team the context to move from alert fatigue to confident resolution.
           </p>
-          <a href="/signup" className="inline-flex rounded-xl bg-[#111] px-8 py-4 text-sm tracking-widest text-white transition-colors hover:bg-[#333]">GET API ACCESS</a>
+          <a href={signedIn ? '/settings?tab=api' : '/signin'} className="inline-flex rounded-xl bg-[#111] px-8 py-4 text-sm tracking-widest text-white transition-colors hover:bg-[#333]">GET API ACCESS</a>
         </div>
       </section>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
@@ -21,13 +21,40 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false)
   const [projectId, setProjectId] = useState<string | null>(null)
   const [selectedProvider, setSelectedProvider] = useState('openai')
-  const [feedback, setFeedback] = useState('')
   const [events, setEvents] = useState<any[]>([])
+  const [githubProfile, setGithubProfile] = useState<{ login: string; avatarUrl: string | null; name?: string } | null>(null)
   const [eventForm, setEventForm] = useState<{ name: string; repoOwner: string; repoName: string; defaultBranch: string; triggerNow: boolean }>({ name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true })
   const selectedProviderDefinition = PROVIDERS[selectedProvider]
 
+  const loadSettings = useCallback(async () => {
+    try {
+      const projectResponse = await fetch('/api/project/current')
+      const projectData = await projectResponse.json()
+      const id = projectData.project?.id
+      if (!projectResponse.ok || !id) {
+        toastError('No project yet', projectData.error || 'Create a project before configuring integrations.')
+        return
+      }
+      setProjectId(id)
+      const query = `?projectId=${encodeURIComponent(id)}`
+      const [llm, alerts, github, key] = await Promise.all([
+        fetch(`/api/settings/llm${query}`).then(r => r.json()),
+        fetch(`/api/settings/alerts${query}`).then(r => r.json()),
+        fetch(`/api/github/repos${query}`).then(r => r.json()),
+        fetch(`/api/project/apikey${query}`).then(r => r.json()),
+      ])
+      setLLMConfigs(llm)
+      setAlertConfigs(alerts)
+      setGithubConfigs(github)
+      setApiKeys(key.keys ?? [])
+    } catch {
+      toastError('Settings could not be loaded', 'Please try again in a moment.')
+    }
+  }, [])
+
   // The GitHub OAuth callback redirects back to /settings?github=<status>.
-  // Surface that status as a toast once, then strip the param from the URL.
+  // Surface that status as a toast once, strip the param, and reload the
+  // GitHub config so the UI reflects the new connection without a refresh.
   useEffect(() => {
     const status = new URLSearchParams(window.location.search).get('github')
     if (!status) return
@@ -47,43 +74,35 @@ export default function SettingsPage() {
     if (config.kind === 'success') toastSuccess(config.title, config.description)
     else if (config.kind === 'error') toastError(config.title, config.description)
     else toastInfo(config.title, config.description)
+    if (status === 'connected') loadSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     setMounted(true)
+    const tab = new URLSearchParams(window.location.search).get('tab')
+    if (tab && ['llm', 'github', 'alerts', 'api', 'profile'].includes(tab)) {
+      setActiveTab(tab)
+    }
     fetch('/api/auth/profile').then(r => r.json()).then((data) => {
       if (data?.user) {
         setProfile({ name: data.user.name ?? '', email: data.user.email ?? '', avatarUrl: data.user.avatarUrl ?? null })
       }
     }).catch(() => {})
-    async function loadSettings() {
-      try {
-        const projectResponse = await fetch('/api/project/current')
-        const projectData = await projectResponse.json()
-        const id = projectData.project?.id
-        if (!projectResponse.ok || !id) {
-          toastError('No project yet', projectData.error || 'Create a project before configuring integrations.')
-          return
-        }
-        setProjectId(id)
-        const query = `?projectId=${encodeURIComponent(id)}`
-        const [llm, alerts, github, key] = await Promise.all([
-          fetch(`/api/settings/llm${query}`).then(r => r.json()),
-          fetch(`/api/settings/alerts${query}`).then(r => r.json()),
-          fetch(`/api/github/repos${query}`).then(r => r.json()),
-          fetch(`/api/project/apikey${query}`).then(r => r.json()),
-        ])
-        setLLMConfigs(llm)
-        setAlertConfigs(alerts)
-        setGithubConfigs(github)
-        setApiKeys(key.keys ?? [])
-      } catch {
-        setFeedback('Settings could not be loaded. Please try again.')
-        toastError('Settings could not be loaded', 'Please try again in a moment.')
-      }
-    }
     loadSettings()
-  }, [])
+  }, [loadSettings])
+
+  useEffect(() => {
+    if (!githubConfigs?.repos?.length || !projectId) return
+    fetch(`/api/github/profile?projectId=${encodeURIComponent(projectId)}`)
+      .then(r => r.json())
+      .then((data) => {
+        if (data?.profile) {
+          setGithubProfile({ login: data.profile.login, avatarUrl: data.profile.avatarUrl ?? null, name: data.profile.name })
+        }
+      })
+      .catch(() => {})
+  }, [githubConfigs?.repos?.length, projectId])
 
   useEffect(() => {
     if (projectId) loadEvents()
@@ -113,7 +132,6 @@ export default function SettingsPage() {
 
       const result = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(result.error || 'Error saving LLM configuration')
-      setFeedback('LLM configuration saved.')
       toastSuccess('LLM configuration saved', `${selectedProviderDefinition.name} · ${data.model} is now the active provider.`)
       form.reset()
       if (projectId) {
@@ -121,7 +139,6 @@ export default function SettingsPage() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error saving LLM configuration'
-      setFeedback(message)
       toastError('Could not save LLM configuration', message)
     } finally {
       setActionLoading(null)
@@ -182,7 +199,7 @@ export default function SettingsPage() {
 
   const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!projectId) { setFeedback('Create a project before adding an event.'); return toastError('No project yet', 'Create a project before adding an event.') }
+    if (!projectId) { return toastError('No project yet', 'Create a project before adding an event.') }
     if (!eventForm.name.trim() || !eventForm.repoOwner.trim() || !eventForm.repoName.trim()) {
       return toastError('Missing fields', 'Event name, repo owner and repo name are required.')
     }
@@ -265,12 +282,10 @@ export default function SettingsPage() {
 
       const result = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(result.error || 'Error saving alert configuration')
-      setFeedback('Alert configuration saved.')
       toastSuccess('Alert configuration saved', 'You will now be notified on new high-severity clusters.')
       form.reset()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error saving alert configuration'
-      setFeedback(message)
       toastError('Could not save alert configuration', message)
     } finally {
       setActionLoading(null)
@@ -367,7 +382,7 @@ export default function SettingsPage() {
   }
 
   const handleGenerateKey = async () => {
-    if (!projectId) { setFeedback('Create a project before generating an API key.'); return toastError('No project yet', 'Create a project before generating an API key.') }
+    if (!projectId) { return toastError('No project yet', 'Create a project before generating an API key.') }
     setActionLoading('apikey')
     try {
       const response = await fetch('/api/project/apikey', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, action: 'regenerate' }) })
@@ -375,11 +390,9 @@ export default function SettingsPage() {
       if (!response.ok) throw new Error(result.error || 'Unable to generate API key')
       setGeneratedKey(result.apiKey)
       setApiKeys(result.keys ?? [])
-      setFeedback('New API key generated. Copy it now; it will not be shown again.')
       toastSuccess('API key generated', 'Copy the key below — it will not be shown again.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to generate API key'
-      setFeedback(message)
       toastError('Could not generate API key', message)
     } finally { setActionLoading(null) }
   }
@@ -428,7 +441,6 @@ export default function SettingsPage() {
           defaultBranch: result.config?.default_branch ?? prev?.activeConfig?.defaultBranch ?? 'main',
         },
       }))
-      setFeedback(`Active repository switched to ${owner}/${name}.`)
       toastSuccess('Repository switched', `Auto-fix PRs will now target ${owner}/${name}.`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to switch repository'
@@ -445,7 +457,8 @@ export default function SettingsPage() {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Unable to disconnect GitHub')
       setGithubConfigs(null)
-      setFeedback('GitHub disconnected.')
+      setGithubProfile(null)
+      setEvents([])
       toastSuccess('GitHub disconnected', 'Your GitHub account is no longer linked to this project.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to disconnect GitHub'
@@ -471,7 +484,6 @@ export default function SettingsPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20 py-16">
-        {feedback && <p role="status" className="mb-6 rounded-xl border border-black/[0.08] bg-white px-4 py-3 text-sm text-black/65">{feedback}</p>}
         
         {/* Tabs */}
         <div className="flex gap-2 mb-8 border-b border-black/[0.06]">
@@ -604,14 +616,31 @@ export default function SettingsPage() {
                   <p className="text-sm text-black/60 mb-4">
                     Connected to GitHub. Automatic PR creation and CI integration are enabled for this project.
                   </p>
+                  {githubProfile && (
+                    <div className="mb-4 flex items-center gap-3 rounded-xl border border-black/[0.07] bg-black/[0.03] px-4 py-3">
+                      {githubProfile.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={githubProfile.avatarUrl} alt={githubProfile.login} className="size-9 rounded-full" />
+                      ) : (
+                        <div className="flex size-9 items-center justify-center rounded-full bg-black text-sm font-medium text-white">
+                          {githubProfile.login?.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{githubProfile.name ?? githubProfile.login}</p>
+                        <p className="truncate text-xs text-black/45">@{githubProfile.login}</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="px-3 py-1.5 rounded-lg bg-green-100 text-green-700 text-xs font-light tracking-widest">CONNECTED</span>
                     <button
                       type="button"
                       disabled={actionLoading === 'github'}
                       onClick={handleGitHubDisconnect}
-                      className="px-6 py-3 rounded-xl border border-red-900/20 bg-red-50 text-red-800 text-sm font-light tracking-widest hover:bg-red-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-red-900/20 bg-red-50 text-red-800 text-sm font-light tracking-widest hover:bg-red-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                     >
+                      <svg viewBox="0 0 16 16" className="size-4 fill-current" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
                       {actionLoading === 'github' ? 'DISCONNECTING…' : 'LOGOUT FROM THIS ACCOUNT'}
                     </button>
                   </div>
@@ -622,12 +651,12 @@ export default function SettingsPage() {
                     Connect your GitHub account to enable automatic PR creation and CI integration.
                   </p>
                   <button type="button" disabled={!projectId || actionLoading === 'github-connect'} onClick={async () => {
-                    if (!projectId) { setFeedback('Create a project before connecting GitHub.'); return toastError('No project yet', 'Create a project before connecting GitHub.') }
+                    if (!projectId) { return toastError('No project yet', 'Create a project before connecting GitHub.') }
                     setActionLoading('github-connect')
-                    setFeedback('Opening GitHub authorization…')
                     toastInfo('Opening GitHub authorization', 'You will be redirected to GitHub to grant repo access.')
                     window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}`
-                  }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
+                  }} className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
+                    <svg viewBox="0 0 16 16" className="size-4 fill-current" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
                     {actionLoading === 'github-connect' ? 'OPENING GITHUB…' : 'CONNECT GITHUB'}
                   </button>
                 </div>
@@ -694,26 +723,44 @@ export default function SettingsPage() {
                       className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
                     />
                   </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <div>
-                      <label className="block text-xs tracking-widest text-black/40 mb-2">REPO OWNER</label>
-                      <input
-                        name="event-owner"
-                        placeholder="acme"
-                        value={eventForm.repoOwner}
-                        onChange={(e) => setEventForm((f) => ({ ...f, repoOwner: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
-                      />
+                  <div>
+                    <label className="block text-xs tracking-widest text-black/40 mb-2">GITHUB ACCOUNT</label>
+                    <div className="flex items-center gap-3 rounded-xl border border-black/[0.07] bg-black/[0.03] px-4 py-3">
+                      {githubProfile?.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={githubProfile.avatarUrl} alt={githubProfile.login} className="size-8 rounded-full" />
+                      ) : (
+                        <div className="flex size-8 items-center justify-center rounded-full bg-black text-xs font-medium text-white">
+                          {githubProfile?.login?.slice(0, 1).toUpperCase() ?? '?'}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{githubProfile?.name ?? githubProfile?.login ?? 'Loading GitHub account…'}</p>
+                        {githubProfile?.login && <p className="truncate text-xs text-black/45">@{githubProfile.login}</p>}
+                      </div>
                     </div>
+                    <p className="mt-1.5 text-xs text-black/40">Repo owner is taken from your GitHub account.</p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="block text-xs tracking-widest text-black/40 mb-2">REPO NAME</label>
-                      <input
+                      <select
                         name="event-repo"
-                        placeholder="api"
-                        value={eventForm.repoName}
-                        onChange={(e) => setEventForm((f) => ({ ...f, repoName: e.target.value }))}
+                        value={eventForm.repoOwner && eventForm.repoName ? `${eventForm.repoOwner}/${eventForm.repoName}` : ''}
+                        onChange={(e) => {
+                          const [owner, name] = e.target.value.split('/')
+                          if (owner && name) setEventForm((f) => ({ ...f, repoOwner: owner, repoName: name }))
+                        }}
+                        required
                         className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
-                      />
+                      >
+                        <option value="" disabled>Select a repository</option>
+                        {githubConfigs.repos.map((repo: any) => (
+                          <option key={`${repo.owner}/${repo.name}`} value={`${repo.owner}/${repo.name}`}>
+                            {repo.owner}/{repo.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-xs tracking-widest text-black/40 mb-2">BRANCH</label>
