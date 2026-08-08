@@ -23,7 +23,13 @@ export default function SettingsPage() {
   const [selectedProvider, setSelectedProvider] = useState('openai')
   const [events, setEvents] = useState<any[]>([])
   const [githubProfile, setGithubProfile] = useState<{ login: string; avatarUrl: string | null; name?: string } | null>(null)
-  const [eventForm, setEventForm] = useState<{ name: string; repoOwner: string; repoName: string; defaultBranch: string; triggerNow: boolean }>({ name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true })
+  const [eventForm, setEventForm] = useState<{
+    name: string; repoOwner: string; repoName: string; defaultBranch: string; triggerNow: boolean;
+    fixProvider: string; fixModel: string; commitProvider: string; commitModel: string;
+  }>({
+    name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true,
+    fixProvider: '', fixModel: '', commitProvider: '', commitModel: '',
+  })
   const selectedProviderDefinition = PROVIDERS[selectedProvider]
 
   const loadSettings = useCallback(async () => {
@@ -212,7 +218,7 @@ export default function SettingsPage() {
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Error creating event')
-      setEventForm({ name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true })
+      setEventForm({ name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true, fixProvider: '', fixModel: '', commitProvider: '', commitModel: '' })
       await loadEvents()
       toastSuccess('Event created', `"${result.event?.name}" is now watching ${result.event?.repo_owner}/${result.event?.repo_name}.`)
     } catch (error) {
@@ -758,6 +764,71 @@ export default function SettingsPage() {
                       />
                     </div>
                   </div>
+
+                  <div className="rounded-xl border border-black/[0.07] bg-black/[0.02] p-4">
+                    <label className="block text-xs tracking-widest text-black/40 mb-1">FIX / PATCH MODEL</label>
+                    <p className="text-xs text-black/45 mb-3">
+                      Analyzes the latest commit and generates the fix patch. Leave as default to use your saved LLM config.
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <select
+                        value={eventForm.fixProvider}
+                        onChange={(e) => {
+                          const provider = e.target.value
+                          setEventForm((f) => ({ ...f, fixProvider: provider, fixModel: provider ? PROVIDERS[provider]?.models[0] ?? '' : '' }))
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                      >
+                        <option value="">Default (saved config)</option>
+                        {Object.values(PROVIDERS).map((p) => (
+                          <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={eventForm.fixModel}
+                        disabled={!eventForm.fixProvider}
+                        onChange={(e) => setEventForm((f) => ({ ...f, fixModel: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20 disabled:opacity-40"
+                      >
+                        {eventForm.fixProvider && PROVIDERS[eventForm.fixProvider]?.models.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-black/[0.07] bg-black/[0.02] p-4">
+                    <label className="block text-xs tracking-widest text-black/40 mb-1">COMMIT MESSAGE MODEL</label>
+                    <p className="text-xs text-black/45 mb-3">
+                      Writes the commit message when the auto-fix PR is opened. Leave as default to use your saved LLM config.
+                    </p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <select
+                        value={eventForm.commitProvider}
+                        onChange={(e) => {
+                          const provider = e.target.value
+                          setEventForm((f) => ({ ...f, commitProvider: provider, commitModel: provider ? PROVIDERS[provider]?.models[0] ?? '' : '' }))
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                      >
+                        <option value="">Default (saved config)</option>
+                        {Object.values(PROVIDERS).map((p) => (
+                          <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={eventForm.commitModel}
+                        disabled={!eventForm.commitProvider}
+                        onChange={(e) => setEventForm((f) => ({ ...f, commitModel: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20 disabled:opacity-40"
+                      >
+                        {eventForm.commitProvider && PROVIDERS[eventForm.commitProvider]?.models.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="flex items-center gap-3">
                     <input
                       id="event-trigger-now"
