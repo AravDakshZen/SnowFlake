@@ -2,11 +2,12 @@ import { getSql } from './db'
 
 export interface InvestigationJob {
   projectId: string
-  logId: string
-  clusterId: string
+  logId?: string
+  clusterId?: string
   investigationId?: string
   parentInvestigationId?: string
   attempt?: number
+  eventId?: string
 }
 
 export interface QueueJob<T> {
@@ -64,7 +65,7 @@ export async function queueInvestigation(job: InvestigationJob): Promise<QueueEn
   let investigationId = job.investigationId
 
   try {
-    if (!investigationId) {
+    if (!investigationId && job.logId) {
       const sql = getSql()
       const [log] = await sql`
         SELECT endpoint, user_id FROM public.api_logs WHERE id = ${job.logId} LIMIT 1
@@ -83,7 +84,7 @@ export async function queueInvestigation(job: InvestigationJob): Promise<QueueEn
         VALUES (
           ${job.projectId},
           ${log?.user_id ?? null},
-          ${job.clusterId},
+          ${job.clusterId ?? null},
           ${job.logId},
           ${job.parentInvestigationId ?? null},
           ${log?.endpoint ?? 'Unknown error'},
@@ -106,6 +107,13 @@ export async function queueInvestigation(job: InvestigationJob): Promise<QueueEn
 
 export async function getQueueStats() {
   return investigationQueue.getJobCounts()
+}
+
+export async function queueEventAnalysis(job: InvestigationJob): Promise<QueueEnqueueResult> {
+  const queuedJob = await investigationQueue.add(job, {
+    jobId: `evt-${job.eventId ?? Date.now()}-${Date.now()}`,
+  })
+  return { jobId: queuedJob.id, status: 'queued' }
 }
 
 export async function setupInvestigationProcessor(

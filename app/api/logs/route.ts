@@ -7,6 +7,7 @@ import { getLLMProvider } from '@/lib/llm';
 import { decryptValue } from '@/lib/encryption';
 import { emitToProject } from '@/lib/socket';
 import { logAudit } from '@/lib/audit';
+import { ensureWorkerRegistered } from '@/lib/worker-bootstrap';
 
 interface LogPayload {
   endpoint: string;
@@ -80,6 +81,7 @@ async function validateApiKey(
 
 export async function POST(request: NextRequest) {
   try {
+    ensureWorkerRegistered();
     const authHeader = request.headers.get('authorization');
     const payload: LogPayload = await request.json();
 

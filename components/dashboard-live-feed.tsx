@@ -16,6 +16,27 @@ const labels: Record<string, string> = {
   'ci:watching': 'CI checks being watched',
   'ci:failed_reinvestigating': 'CI failed; re-investigating',
   'alert:escalated': 'Alert escalated',
+  'event:created': 'Automation event created',
+  'event:started': 'Event analysis started',
+  'event:completed': 'Event analysis complete',
+  'event:failed': 'Event analysis failed',
+  'event:deleted': 'Automation event deleted',
+}
+
+function feedHref(event: FeedEvent): string | null {
+  if (event.type === 'pr:created') {
+    const url = typeof event.prUrl === 'string' ? event.prUrl : null
+    return url
+  }
+  if (event.type === 'investigation:complete') return '/investigations'
+  if (event.type === 'event:completed' || event.type === 'event:started' || event.type === 'event:created') {
+    const investigationId = typeof event.investigationId === 'string' ? event.investigationId : null
+    return investigationId ? `/investigations/${investigationId}` : '/investigations'
+  }
+  if (event.type.startsWith('event:')) return '/investigations'
+  if (event.type.startsWith('investigation:')) return '/investigations'
+  if (event.type.startsWith('ci:')) return '/investigations'
+  return null
 }
 
 export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
@@ -45,6 +66,12 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
         } else if (next.type === 'alert:escalated') {
           toastedIds.current.add(eventId)
           toastError('Alert escalated', message)
+        } else if (next.type === 'event:completed') {
+          toastedIds.current.add(eventId)
+          toastSuccess('Event analysis complete', message)
+        } else if (next.type === 'event:failed') {
+          toastedIds.current.add(eventId)
+          toastError('Event analysis failed', message)
         }
       } catch {}
     }
@@ -62,8 +89,24 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
       </div>
       <div className="flex max-h-72 flex-col gap-2 overflow-auto rounded-2xl border border-black/10 bg-white p-3">
         {events.length === 0 ? <p className="px-3 py-8 text-center text-sm text-black/40">Live investigation events will appear here.</p> : events.slice().reverse().map((event, index) => {
-          const tone = event.type.includes('escalated') ? 'text-red-600' : event.type.includes('complete') || event.type.includes('created') ? 'text-emerald-600' : event.type.includes('progress') || event.type.includes('queued') ? 'text-amber-600' : 'text-sky-600'
-          return <div key={`${event.type}-${event.timestamp}-${index}`} className="flex items-start gap-3 rounded-xl px-3 py-2 hover:bg-black/[0.03]"><span className={`mt-1 size-2 shrink-0 rounded-full bg-current ${tone}`} /><div className="min-w-0"><p className="text-sm text-black/75">{event.message || labels[event.type] || event.type}</p><p className="mt-0.5 text-[11px] text-black/35">{event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : 'just now'}</p></div></div>
+          const tone = event.type.includes('escalated') ? 'text-red-600' : event.type.includes('complete') || event.type.includes('created') ? 'text-emerald-600' : event.type.includes('progress') || event.type.includes('queued') || event.type.includes('started') ? 'text-amber-600' : event.type.includes('failed') ? 'text-red-600' : 'text-sky-600'
+          const href = feedHref(event)
+          const inner = (
+            <>
+              <span className={`mt-1 size-2 shrink-0 rounded-full bg-current ${tone}`} />
+              <div className="min-w-0">
+                <p className="text-sm text-black/75">{event.message || labels[event.type] || event.type}</p>
+                <p className="mt-0.5 text-[11px] text-black/35">{event.timestamp ? new Date(event.timestamp).toLocaleTimeString() : 'just now'}</p>
+              </div>
+            </>
+          )
+          const className = "flex items-start gap-3 rounded-xl px-3 py-2 hover:bg-black/[0.03]"
+          const itemStyle = { animation: 'fade-up 0.45s cubic-bezier(0.16,1,0.3,1) both' }
+          return href ? (
+            <a key={`${event.type}-${event.timestamp}-${index}`} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel={href.startsWith('http') ? 'noreferrer' : undefined} className={`${className} cursor-pointer`} style={itemStyle}>{inner}</a>
+          ) : (
+            <div key={`${event.type}-${event.timestamp}-${index}`} className={className} style={itemStyle}>{inner}</div>
+          )
         })}
       </div>
     </section>

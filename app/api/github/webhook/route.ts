@@ -5,11 +5,13 @@ import { emitToProject } from '@/lib/socket';
 import { logAudit } from '@/lib/audit';
 import { sendEscalationAlert } from '@/lib/alerts';
 import { resolveAppUrl } from '@/lib/config';
+import { ensureWorkerRegistered } from '@/lib/worker-bootstrap';
 
 const APP_URL = resolveAppUrl();
 
 export async function POST(request: NextRequest) {
   try {
+    ensureWorkerRegistered();
     const payload = await request.json();
 
     // GitHub webhook signature validation would go here in production

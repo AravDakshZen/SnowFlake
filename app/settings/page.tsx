@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
+import { ProviderChip, getProviderBrand } from '@/components/provider-icons'
 import { PROVIDERS } from '@/lib/llm'
 import { toastSuccess, toastError, toastInfo, toastLoading } from '@/lib/toasts'
 
@@ -21,6 +22,8 @@ export default function SettingsPage() {
   const [projectId, setProjectId] = useState<string | null>(null)
   const [selectedProvider, setSelectedProvider] = useState('openai')
   const [feedback, setFeedback] = useState('')
+  const [events, setEvents] = useState<any[]>([])
+  const [eventForm, setEventForm] = useState<{ name: string; repoOwner: string; repoName: string; defaultBranch: string; triggerNow: boolean }>({ name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true })
   const selectedProviderDefinition = PROVIDERS[selectedProvider]
 
   // The GitHub OAuth callback redirects back to /settings?github=<status>.
@@ -82,6 +85,11 @@ export default function SettingsPage() {
     loadSettings()
   }, [])
 
+  useEffect(() => {
+    if (projectId) loadEvents()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
+
   const handleLLMSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const form = e.currentTarget
@@ -115,6 +123,121 @@ export default function SettingsPage() {
       const message = error instanceof Error ? error.message : 'Error saving LLM configuration'
       setFeedback(message)
       toastError('Could not save LLM configuration', message)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleLLMSetDefault = async (configId: string) => {
+    setActionLoading(`llm-default-${configId}`)
+    try {
+      const response = await fetch('/api/settings/llm', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: configId, isDefault: true, project_id: projectId }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Error setting default')
+      toastSuccess('Default provider updated', 'Future investigations will prefer this configuration.')
+      if (projectId) {
+        const fresh = await fetch(`/api/settings/llm?projectId=${encodeURIComponent(projectId)}`).then(r => r.json())
+        setLLMConfigs(fresh)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error setting default'
+      toastError('Could not update default', message)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleLLMDeleteConfig = async (configId: string) => {
+    if (!confirm('Remove this LLM configuration and its stored API key?')) return
+    setActionLoading(`llm-delete-${configId}`)
+    try {
+      const response = await fetch(`/api/settings/llm?id=${encodeURIComponent(configId)}`, { method: 'DELETE' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Error removing configuration')
+      toastSuccess('LLM configuration removed')
+      if (projectId) {
+        const fresh = await fetch(`/api/settings/llm?projectId=${encodeURIComponent(projectId)}`).then(r => r.json())
+        setLLMConfigs(fresh)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error removing configuration'
+      toastError('Could not remove configuration', message)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const loadEvents = async () => {
+    if (!projectId) return
+    try {
+      const res = await fetch(`/api/events?projectId=${encodeURIComponent(projectId)}`)
+      const data = await res.json()
+      if (res.ok) setEvents(data.events ?? [])
+    } catch { /* ignore */ }
+  }
+
+  const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!projectId) { setFeedback('Create a project before adding an event.'); return toastError('No project yet', 'Create a project before adding an event.') }
+    if (!eventForm.name.trim() || !eventForm.repoOwner.trim() || !eventForm.repoName.trim()) {
+      return toastError('Missing fields', 'Event name, repo owner and repo name are required.')
+    }
+    setActionLoading('event-create')
+    try {
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...eventForm, projectId }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Error creating event')
+      setEventForm({ name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true })
+      await loadEvents()
+      toastSuccess('Event created', `"${result.event?.name}" is now watching ${result.event?.repo_owner}/${result.event?.repo_name}.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error creating event'
+      toastError('Could not create event', message)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleTriggerEvent = async (id: string) => {
+    setActionLoading(`event-run-${id}`)
+    try {
+      const response = await fetch(`/api/events/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ triggerNow: true }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Error triggering event')
+      await loadEvents()
+      toastSuccess('Event triggered', `"${result.event?.name}" is now analyzing the latest commit.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error triggering event'
+      toastError('Could not trigger event', message)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleDeleteEvent = async (id: string, name: string) => {
+    if (!confirm(`Delete event "${name}"? Its history will be removed.`)) return
+    setActionLoading(`event-delete-${id}`)
+    try {
+      const response = await fetch(`/api/events/${id}`, { method: 'DELETE' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Error deleting event')
+      await loadEvents()
+      toastSuccess('Event deleted', `"${name}" removed.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error deleting event'
+      toastError('Could not delete event', message)
     } finally {
       setActionLoading(null)
     }
@@ -378,7 +501,7 @@ export default function SettingsPage() {
               <div>
                 <label className="mb-2 block text-xs tracking-widest text-black/40">PROVIDER</label>
                 <div className="mb-3 flex items-center gap-3 rounded-xl border border-black/[0.07] bg-white px-4 py-3">
-                  <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-lg bg-black text-xs font-semibold tracking-tight text-white">{selectedProviderDefinition.icon}</span>
+                  <ProviderChip providerId={selectedProvider} size={32} />
                   <div className="min-w-0"><p className="text-sm font-medium">{selectedProviderDefinition.name}</p><p className="truncate text-xs text-black/45">Provider brand and available model catalog</p></div>
                 </div>
                 <select name="provider" value={selectedProvider} onChange={(event) => setSelectedProvider(event.target.value)} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
@@ -422,11 +545,45 @@ export default function SettingsPage() {
             {llmConfigs?.configs?.length ? (
               <div className="mt-8 p-6 rounded-xl border border-black/[0.07] bg-white">
                 <h3 className="text-sm font-light tracking-widest mb-3">SAVED API KEYS</h3>
+                <p className="text-xs text-black/40 mb-3">
+                  The default provider is preferred when running investigations. Mark one as default, or remove it entirely.
+                </p>
                 <div className="space-y-3">
                   {llmConfigs.configs.map((config: any) => (
                     <div key={config.id} className="p-3 rounded-lg bg-black/5">
-                      <div className="text-xs text-black/60">{config.provider} • {config.model}</div>
-                      {config.maskedKey && <div className="mt-1 font-mono text-xs text-black/40">{config.maskedKey}</div>}
+                      <div className="flex items-center gap-3">
+                        <ProviderChip providerId={config.provider} size={28} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <span className="font-medium">{getProviderBrand(config.provider).name}</span>
+                            <span className="text-xs text-black/50">{config.model}</span>
+                            {config.is_default && (
+                              <span className="px-1.5 py-0.5 rounded-full bg-black text-white text-[10px] tracking-widest">DEFAULT</span>
+                            )}
+                          </div>
+                          {config.maskedKey && <div className="mt-1 font-mono text-xs text-black/40">{config.maskedKey}</div>}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {!config.is_default && (
+                            <button
+                              type="button"
+                              disabled={actionLoading === `llm-default-${config.id}`}
+                              onClick={() => handleLLMSetDefault(config.id)}
+                              className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors disabled:opacity-50"
+                            >
+                              {actionLoading === `llm-default-${config.id}` ? 'SETTING…' : 'SET DEFAULT'}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={actionLoading === `llm-delete-${config.id}`}
+                            onClick={() => handleLLMDeleteConfig(config.id)}
+                            className="px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-light tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            {actionLoading === `llm-delete-${config.id}` ? 'REMOVING…' : 'REMOVE'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -516,6 +673,124 @@ export default function SettingsPage() {
                     )
                   })}
                 </div>
+              </div>
+            ) : null}
+
+            {githubConfigs?.repos?.length ? (
+              <div className="mt-8 p-6 rounded-xl border border-black/[0.07] bg-white">
+                <h3 className="text-sm font-light tracking-widest mb-1">AUTOMATION EVENTS</h3>
+                <p className="text-xs text-black/40 mb-4">
+                  Watch for regressions on every new commit. Each event analyzes the latest commit and opens a fix PR when confidence is high.
+                </p>
+
+                <form onSubmit={handleCreateEvent} className="space-y-4">
+                  <div>
+                    <label className="block text-xs tracking-widest text-black/40 mb-2">EVENT NAME</label>
+                    <input
+                      name="event-name"
+                      placeholder="e.g. Auth regression guard"
+                      value={eventForm.name}
+                      onChange={(e) => setEventForm((f) => ({ ...f, name: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-xs tracking-widest text-black/40 mb-2">REPO OWNER</label>
+                      <input
+                        name="event-owner"
+                        placeholder="acme"
+                        value={eventForm.repoOwner}
+                        onChange={(e) => setEventForm((f) => ({ ...f, repoOwner: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs tracking-widest text-black/40 mb-2">REPO NAME</label>
+                      <input
+                        name="event-repo"
+                        placeholder="api"
+                        value={eventForm.repoName}
+                        onChange={(e) => setEventForm((f) => ({ ...f, repoName: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs tracking-widest text-black/40 mb-2">BRANCH</label>
+                      <input
+                        name="event-branch"
+                        placeholder="main"
+                        value={eventForm.defaultBranch}
+                        onChange={(e) => setEventForm((f) => ({ ...f, defaultBranch: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="event-trigger-now"
+                      type="checkbox"
+                      checked={eventForm.triggerNow}
+                      onChange={(e) => setEventForm((f) => ({ ...f, triggerNow: e.target.checked }))}
+                      className="size-4 accent-black"
+                    />
+                    <label htmlFor="event-trigger-now" className="text-sm text-black/60">Run analysis immediately on creation</label>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={actionLoading === 'event-create'}
+                    className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading === 'event-create' ? 'CREATING…' : 'CREATE EVENT'}
+                  </button>
+                </form>
+
+                {events.length > 0 && (
+                  <div className="mt-6 space-y-3">
+                    <div className="text-xs text-black/40 tracking-widest uppercase mb-1">ALL EVENTS</div>
+                    {events.map((event: any) => {
+                      const statusTone =
+                        event.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        event.status === 'analyzing' || event.status === 'running' ? 'bg-amber-100 text-amber-700' :
+                        event.status === 'failed' ? 'bg-red-100 text-red-700' :
+                        'bg-black/5 text-black/50'
+                      return (
+                        <div key={event.id} className="p-3 rounded-lg bg-black/5">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 text-sm">
+                                <span className="font-medium truncate">{event.name}</span>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full tracking-widest ${statusTone}`}>{event.status.toUpperCase()}</span>
+                              </div>
+                              <div className="mt-0.5 text-xs text-black/45 truncate">
+                                {event.repo_owner}/{event.repo_name} · {event.default_branch}
+                              </div>
+                              {event.error && <div className="mt-1 text-xs text-red-600">{event.error}</div>}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={actionLoading === `event-run-${event.id}` || (event.status === 'analyzing' || event.status === 'running')}
+                                onClick={() => handleTriggerEvent(event.id)}
+                                className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors disabled:opacity-50"
+                              >
+                                {actionLoading === `event-run-${event.id}` ? 'RUNNING…' : 'RUN NOW'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={actionLoading === `event-delete-${event.id}`}
+                                onClick={() => handleDeleteEvent(event.id, event.name)}
+                                className="px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-light tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50"
+                              >
+                                DELETE
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             ) : null}
           </section>

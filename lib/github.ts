@@ -5,6 +5,15 @@ export interface GitHubFile {
   content: string;
 }
 
+export interface GitHubCommitInfo {
+  sha: string;
+  message: string;
+  authorName: string;
+  authorEmail: string;
+  date: string;
+  files: Array<{ path: string; additions: number; deletions: number }>;
+}
+
 export class GitHubClient {
   private octokit: Octokit;
   private owner: string;
@@ -215,6 +224,59 @@ export class GitHubClient {
       }));
     } catch (error) {
       console.error('[v0] Failed to list repos:', error);
+      this.rethrowAuth(error);
+    }
+  }
+
+  async getLatestCommit(ref?: string): Promise<GitHubCommitInfo> {
+    const branch = ref ?? 'main';
+    try {
+      const { data: commit } = await this.octokit.rest.repos.getCommit({
+        owner: this.owner,
+        repo: this.repo,
+        ref: branch,
+      });
+
+      const files = (commit.files ?? []).map((file) => ({
+        path: file.filename ?? '',
+        additions: file.additions ?? 0,
+        deletions: file.deletions ?? 0,
+      }));
+
+      return {
+        sha: commit.sha,
+        message: commit.commit.message,
+        authorName: commit.commit.author?.name ?? '',
+        authorEmail: commit.commit.author?.email ?? '',
+        date: commit.commit.author?.date ?? new Date().toISOString(),
+        files,
+      };
+    } catch (error) {
+      console.error('[v0] Failed to fetch latest commit:', error);
+      this.rethrowAuth(error);
+    }
+  }
+
+  async getCommitFile(path: string, sha: string): Promise<GitHubFile> {
+    try {
+      const response = await this.octokit.rest.repos.getContent({
+        owner: this.owner,
+        repo: this.repo,
+        path,
+        ref: sha,
+      });
+
+      if (Array.isArray(response.data)) {
+        throw new Error('Path is a directory');
+      }
+
+      if (response.data.type !== 'file' || typeof response.data.content !== 'string') {
+        throw new Error('Path is not a readable file')
+      }
+      const content = Buffer.from(response.data.content, 'base64').toString('utf-8')
+      return { path, content }
+    } catch (error) {
+      console.error(`[v0] Failed to fetch ${path} at ${sha}:`, error);
       this.rethrowAuth(error);
     }
   }

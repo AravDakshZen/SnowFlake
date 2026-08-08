@@ -136,6 +136,7 @@ create table if not exists public.investigations (
   project_id uuid not null references public.projects(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   log_id uuid,
+  event_id uuid references public.automation_events(id) on delete set null,
   parent_investigation_id uuid references public.investigations(id) on delete set null,
   question text not null,
   summary text,
@@ -211,10 +212,12 @@ create table if not exists public.llm_configs (
   model text not null,
   encrypted_key text not null,
   base_url text,
+  is_default boolean not null default false,
   created_at timestamptz not null default now(),
   unique (project_id, provider)
 );
 create index if not exists llm_configs_project_idx on public.llm_configs(project_id);
+create index if not exists llm_configs_default_idx on public.llm_configs(project_id) where is_default = true;
 
 alter table public.llm_configs enable row level security;
 
@@ -257,6 +260,48 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 do $$ begin
   create policy "github_configs_update_own" on public.github_configs for update using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+
+-- Automation Events ----------------------------------------------------------
+-- Named events drive the "create event" flow: an event binds a target repo to a
+-- fix model and a commit model so the agent can analyze the latest commit and
+-- open fixes/PRs autonomously. Each event is an independent run targeting the
+-- most recent commit of the selected repository.
+create table if not exists public.automation_events (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  repo_owner text not null,
+  repo_name text not null,
+  default_branch text not null default 'main',
+  fix_provider text,
+  fix_model text,
+  commit_provider text,
+  commit_model text,
+  status text not null default 'idle',
+  last_commit_sha text,
+  last_run_at timestamptz,
+  error text,
+  created_at timestamptz not null default now(),
+  unique (project_id, name)
+);
+create index if not exists automation_events_project_idx on public.automation_events(project_id);
+create index if not exists automation_events_status_idx on public.automation_events(status);
+
+alter table public.automation_events enable row level security;
+
+do $$ begin
+  create policy "automation_events_select_own" on public.automation_events for select using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "automation_events_insert_own" on public.automation_events for insert with check (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "automation_events_update_own" on public.automation_events for update using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "automation_events_delete_own" on public.automation_events for delete using (auth.uid() = user_id);
 exception when duplicate_object then null; end $$;
 
 -- Alert Configuration -------------------------------------------------------
