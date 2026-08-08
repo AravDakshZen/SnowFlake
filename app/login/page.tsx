@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toastSuccess, toastError } from '@/lib/toasts'
 
 // Only the credential/existence signal is genericized — naming it would confirm
@@ -40,6 +40,13 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    fetch('/api/auth/profile')
+      .then(r => r.json())
+      .then(d => { if (d?.user?.id) router.replace('/dashboard') })
+      .catch(() => {})
+  }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
