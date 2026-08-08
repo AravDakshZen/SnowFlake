@@ -21,6 +21,7 @@ const labels: Record<string, string> = {
   'event:completed': 'Event analysis complete',
   'event:failed': 'Event analysis failed',
   'event:deleted': 'Automation event deleted',
+  'llm:fallback': 'Falling back to another provider',
 }
 
 // Replay the recent audit trail as feed events so the feed is not empty
@@ -120,6 +121,9 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
         } else if (next.type === 'event:failed') {
           toastedIds.current.add(eventId)
           toastError('Event analysis failed', message)
+        } else if (next.type === 'llm:fallback') {
+          toastedIds.current.add(eventId)
+          toastSuccess('Falling back to another provider', message)
         }
       } catch {}
     }

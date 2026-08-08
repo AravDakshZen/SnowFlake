@@ -38,8 +38,7 @@ export class AnthropicProvider implements LLMProvider {
       : '';
 
     const systemPrompt = `You are an expert backend engineer. Analyze the following stack trace and source files.
-Identify the exact root cause, the affected file and line number, and generate a complete corrected version of the affected file.
-Also return a unified diff patch. Return ONLY valid JSON.`;
+Find EVERY bug across all provided files. Identify each root cause with its file and line number, and generate a complete corrected version of every affected file. The patchDiff must contain a hunk for every bug — do not stop at one. Return ONLY valid JSON.`;
 
     const userPrompt = `${previousContext}Stack trace:\n${stackTrace}\n\nSource files:\n${filesContext}`;
 

@@ -1,5 +1,5 @@
 import type { LLMProvider, AnalysisResult } from '../index'
-import { parseAnalysisText, withTimeout, LLM_TIMEOUT_MS, fallbackResult } from '../parse'
+import { parseAnalysisText, withTimeout, LLM_TIMEOUT_MS } from '../parse'
 
 export class OllamaProvider implements LLMProvider {
   constructor(private model: string, private baseUrl: string = 'http://localhost:11434') {}
@@ -31,7 +31,7 @@ export class OllamaProvider implements LLMProvider {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: this.model,
-          prompt: `Analyze error:\n${stackTrace}\n\nSource:\n${JSON.stringify(sourceCode)}\n\nRespond JSON only: {rootCause, affectedFile, affectedLine, suggestedFix, patchDiff, confidence, explanation, fixStrategy}`,
+          prompt: `Analyze error:\n${stackTrace}\n\nSource:\n${JSON.stringify(sourceCode)}\n\nFind EVERY bug in the source and include every fix in patchDiff (multiple hunks allowed). Respond JSON only: {rootCause, affectedFile, affectedLine, suggestedFix, patchDiff, confidence, explanation, fixStrategy}`,
           stream: false,
           temperature: 0.3,
         }),
@@ -49,7 +49,9 @@ export class OllamaProvider implements LLMProvider {
     try {
       return await withTimeout(run())
     } catch (error) {
-      return fallbackResult('Ollama', error)
+      throw new Error(
+        `Failed to get Ollama analysis: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 }

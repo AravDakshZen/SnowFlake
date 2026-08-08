@@ -1,5 +1,5 @@
 import type { LLMProvider, AnalysisResult } from '../index'
-import { parseAnalysisText, withTimeout, LLM_TIMEOUT_MS, fallbackResult } from '../parse'
+import { parseAnalysisText, withTimeout, LLM_TIMEOUT_MS } from '../parse'
 
 export class NvidiaProvider implements LLMProvider {
   constructor(private apiKey: string, private model: string) {}
@@ -48,7 +48,7 @@ export class NvidiaProvider implements LLMProvider {
           messages: [
             {
               role: 'user',
-              content: `Analyze this error:\n${stackTrace}\n\nSource:\n${JSON.stringify(sourceCode)}\n\nRespond with JSON only: {rootCause, affectedFile, affectedLine, suggestedFix, patchDiff, confidence, explanation, fixStrategy}`,
+              content: `Analyze this error:\n${stackTrace}\n\nSource:\n${JSON.stringify(sourceCode)}\n\nFind EVERY bug in the source and include every fix in patchDiff (multiple hunks allowed). Respond with JSON only: {rootCause, affectedFile, affectedLine, suggestedFix, patchDiff, confidence, explanation, fixStrategy}`,
             },
           ],
           temperature: 0.3,
@@ -69,7 +69,9 @@ export class NvidiaProvider implements LLMProvider {
     try {
       return await withTimeout(run())
     } catch (error) {
-      return fallbackResult('NVIDIA', error)
+      throw new Error(
+        `Failed to get NVIDIA analysis: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 }

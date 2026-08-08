@@ -27,11 +27,11 @@ export class TogetherProvider implements LLMProvider {
       .join('\n\n')
 
     let systemPrompt = `You are a senior backend engineer performing automated root cause analysis.
-Given a stack trace and the relevant source files, identify:
+Given a stack trace and the relevant source files, identify EVERY bug across all provided files. For each bug:
 1. The exact root cause (one sentence)
 2. The affected file path and line number
 3. A complete corrected version of the affected file
-4. A unified diff patch
+4. A unified diff patch containing a hunk for EVERY bug — do not stop at one
 5. Your confidence score (0-100) and a plain-english explanation of WHY that score
 6. The fix strategy type (one_liner|refactor|dependency_update|config_change)
 Respond ONLY with valid JSON matching this schema:

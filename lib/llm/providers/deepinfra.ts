@@ -50,7 +50,7 @@ export class DeepInfraProvider implements LLMProvider {
     const run = async () => {
       const text = await generateText({
         model: this.client.chat(this.model),
-        system: `You are a senior backend engineer. Given a stack trace and source files, respond with JSON only:
+        system: `You are a senior backend engineer. Given a stack trace and source files, find EVERY bug in the source files and include every fix in patchDiff (multiple hunks allowed). Respond with JSON only:
 {rootCause, affectedFile, affectedLine, suggestedFix, patchDiff, confidence, explanation, fixStrategy}`,
         prompt: `Stack Trace:\n${stackTrace}\n\nSource Files:\n${fileContext}${previousContext}`,
         temperature: 0.2,
