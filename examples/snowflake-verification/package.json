@@ -1,0 +1,10 @@
+{
+  "name": "snowflake-verification",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Verification repo with intentional bugs for SnowFlake's repo-monitoring workflow.",
+  "scripts": {
+    "test": "node index.js"
+  }
+}
