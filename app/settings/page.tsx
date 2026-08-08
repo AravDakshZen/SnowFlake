@@ -286,6 +286,23 @@ export default function SettingsPage() {
     } finally { setLoading(false) }
   }
 
+  const handleGitHubDisconnect = async () => {
+    if (!projectId) return
+    if (!confirm('Disconnect GitHub from this project? Auto-fix PR creation and CI integration will stop.')) return
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/github/repos?projectId=${encodeURIComponent(projectId)}`, { method: 'DELETE' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Unable to disconnect GitHub')
+      setGithubConfigs(null)
+      setFeedback('GitHub disconnected.')
+      toastSuccess('GitHub disconnected', 'Your GitHub account is no longer linked to this project.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to disconnect GitHub'
+      toastError('Could not disconnect GitHub', message)
+    } finally { setLoading(false) }
+  }
+
   if (!mounted) return null
 
   return (
@@ -398,23 +415,44 @@ export default function SettingsPage() {
             </RevealText>
             
             <div className="p-6 rounded-xl border border-black/[0.07] bg-white">
-              <p className="text-sm text-black/60 mb-4">
-                Connect your GitHub account to enable automatic PR creation and CI integration.
-              </p>
-              <button type="button" disabled={!projectId || loading} onClick={async () => {
-                if (!projectId) { setFeedback('Create a project before connecting GitHub.'); return toastError('No project yet', 'Create a project before connecting GitHub.') }
-                setLoading(true)
-                setFeedback('Opening GitHub authorization…')
-                toastInfo('Opening GitHub authorization', 'You will be redirected to GitHub to grant repo access.')
-                window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}`
-              }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
-                {loading ? 'OPENING GITHUB…' : 'CONNECT GITHUB'}
-              </button>
+              {githubConfigs?.repos?.length ? (
+                <div>
+                  <p className="text-sm text-black/60 mb-4">
+                    Connected to GitHub. Automatic PR creation and CI integration are enabled for this project.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="px-3 py-1.5 rounded-lg bg-green-100 text-green-700 text-xs font-light tracking-widest">CONNECTED</span>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={handleGitHubDisconnect}
+                      className="px-6 py-3 rounded-xl border border-red-900/20 bg-red-50 text-red-800 text-sm font-light tracking-widest hover:bg-red-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {loading ? 'DISCONNECTING…' : 'LOGOUT FROM THIS ACCOUNT'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-black/60 mb-4">
+                    Connect your GitHub account to enable automatic PR creation and CI integration.
+                  </p>
+                  <button type="button" disabled={!projectId || loading} onClick={async () => {
+                    if (!projectId) { setFeedback('Create a project before connecting GitHub.'); return toastError('No project yet', 'Create a project before connecting GitHub.') }
+                    setLoading(true)
+                    setFeedback('Opening GitHub authorization…')
+                    toastInfo('Opening GitHub authorization', 'You will be redirected to GitHub to grant repo access.')
+                    window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}`
+                  }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
+                    {loading ? 'OPENING GITHUB…' : 'CONNECT GITHUB'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {githubConfigs?.repos?.length ? (
               <div className="mt-8 p-6 rounded-xl border border-black/[0.07] bg-white">
-                <h3 className="text-sm font-light tracking-widest mb-3">CONNECTED REPOSITORIES</h3>
+                <h3 className="text-sm font-light tracking-widest mb-3">ACCESSIBLE REPOSITORIES</h3>
                 <div className="space-y-3">
                   {githubConfigs.repos.map((repo: any) => (
                     <div key={`${repo.owner}/${repo.name}`} className="p-3 rounded-lg bg-black/5">

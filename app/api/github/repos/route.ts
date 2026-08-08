@@ -5,6 +5,58 @@ import { decryptValue } from '@/lib/encryption';
 import { GitHubClient } from '@/lib/github';
 import { logAudit } from '@/lib/audit';
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get('projectId');
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'projectId is required' },
+        { status: 400 }
+      );
+    }
+
+    const sql = getSql();
+
+    const removed = await sql`
+      DELETE FROM public.github_configs
+      WHERE project_id = ${projectId}
+        AND user_id = ${session.user.id}
+      RETURNING id, repo_owner, repo_name
+    `;
+
+    if (removed.length === 0) {
+      return NextResponse.json(
+        { error: 'GitHub is not connected to this project' },
+        { status: 400 }
+      );
+    }
+
+    await logAudit(
+      projectId,
+      'github_disconnected',
+      'github_config',
+      removed[0].id,
+      { repoOwner: removed[0].repo_owner, repoName: removed[0].repo_name },
+      session.user.id
+    );
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('[v0] GitHub disconnect error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();

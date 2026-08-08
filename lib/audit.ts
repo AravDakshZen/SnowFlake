@@ -10,6 +10,7 @@ export type AuditAction =
   | 'escalation_fired'
   | 'llm_key_updated'
   | 'repo_connected'
+  | 'github_disconnected'
   | 'api_key_regenerated'
   | 'alert_config_updated'
   | 'webhook_delivered'
