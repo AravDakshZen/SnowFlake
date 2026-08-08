@@ -4,8 +4,9 @@ import { queueInvestigation } from '@/lib/queue';
 import { emitToProject } from '@/lib/socket';
 import { logAudit } from '@/lib/audit';
 import { sendEscalationAlert } from '@/lib/alerts';
+import { resolveAppUrl } from '@/lib/config';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const APP_URL = resolveAppUrl();
 
 export async function POST(request: NextRequest) {
   try {

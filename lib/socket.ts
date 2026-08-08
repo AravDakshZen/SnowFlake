@@ -1,6 +1,7 @@
 import { Server as HTTPServer } from 'http'
 import { Server, Socket } from 'socket.io'
 import { emitProjectEvent } from '@/lib/events'
+import { resolveAppUrl } from '@/lib/config'
 
 let io: Server | null = null
 
@@ -21,7 +22,7 @@ export function initializeSocket(httpServer: HTTPServer): Server {
 
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || '*',
+      origin: resolveAppUrl(),
       methods: ['GET', 'POST'],
     },
     transports: ['websocket', 'polling'],

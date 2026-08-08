@@ -6,8 +6,9 @@ import { sendSlackAlert, sendEmailAlert, sendEscalationAlert } from '@/lib/alert
 import type { InvestigationJob } from '@/lib/queue';
 import { emitToProject } from '@/lib/socket';
 import { logAudit } from '@/lib/audit';
+import { resolveAppUrl } from '@/lib/config';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const APP_URL = resolveAppUrl();
 
 export async function processInvestigation(job: InvestigationJob): Promise<void> {
   const sql = getSql();

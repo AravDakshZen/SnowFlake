@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getSql } from '@/lib/db'
 import { encryptValue } from '@/lib/encryption'
+import { getGitHubRedirectUri } from '@/app/api/github/connect/route'
 
 export async function GET(request: NextRequest) {
   const session = await getSession()
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
   if (!clientId || !clientSecret) return NextResponse.redirect(new URL('/settings?github=not_configured', request.url))
 
   try {
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/api/github/callback`
+    const redirectUri = getGitHubRedirectUri(request.nextUrl.origin)
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
