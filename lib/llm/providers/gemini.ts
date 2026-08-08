@@ -1,5 +1,5 @@
 import { generateObject, embed } from 'ai';
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { z } from 'zod';
 import type { LLMProvider, AnalysisResult } from '../index';
 import { withTimeout } from '../parse';
@@ -16,12 +16,12 @@ const analysisSchema = z.object({
 });
 
 export class GeminiProvider implements LLMProvider {
-  private apiKey: string;
   private model: string;
+  private client: ReturnType<typeof createGoogleGenerativeAI>;
 
   constructor(apiKey: string, model: string) {
-    this.apiKey = apiKey;
     this.model = model;
+    this.client = createGoogleGenerativeAI({ apiKey });
   }
 
   async analyze(
@@ -45,7 +45,7 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
 
     const result = await withTimeout(
       generateObject({
-        model: google(this.model),
+        model: this.client(this.model),
         system: systemPrompt,
         prompt: userPrompt,
         schema: analysisSchema,
@@ -57,7 +57,7 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
 
   async embed(text: string): Promise<number[]> {
     const embedding = await embed({
-      model: google.embedding('text-embedding-004'),
+      model: this.client.embedding('text-embedding-004'),
       value: text,
     });
 

@@ -1,5 +1,5 @@
 import { generateObject } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import type { LLMProvider, AnalysisResult } from '../index';
 import { withTimeout } from '../parse';
@@ -16,12 +16,12 @@ const analysisSchema = z.object({
 });
 
 export class AnthropicProvider implements LLMProvider {
-  private apiKey: string;
   private model: string;
+  private client: ReturnType<typeof createAnthropic>;
 
   constructor(apiKey: string, model: string) {
-    this.apiKey = apiKey;
     this.model = model;
+    this.client = createAnthropic({ apiKey });
   }
 
   async analyze(
@@ -45,7 +45,7 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
 
     const result = await withTimeout(
       generateObject({
-        model: anthropic(this.model),
+        model: this.client(this.model),
         system: systemPrompt,
         prompt: userPrompt,
         schema: analysisSchema,
@@ -69,7 +69,7 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
     try {
       await withTimeout(
         generateObject({
-          model: anthropic(this.model),
+          model: this.client(this.model),
           system: 'Reply with "ok".',
           prompt: 'test',
           schema: z.object({ ok: z.string() }),

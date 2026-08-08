@@ -1,5 +1,5 @@
 import { generateObject, embed } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import type { LLMProvider, AnalysisResult } from '../index';
 import { withTimeout } from '../parse';
@@ -16,12 +16,12 @@ const analysisSchema = z.object({
 });
 
 export class OpenAIProvider implements LLMProvider {
-  private apiKey: string;
   private model: string;
+  private client: ReturnType<typeof createOpenAI>;
 
   constructor(apiKey: string, model: string) {
-    this.apiKey = apiKey;
     this.model = model;
+    this.client = createOpenAI({ apiKey });
   }
 
   async analyze(
@@ -45,7 +45,7 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
 
     const result = await withTimeout(
       generateObject({
-        model: openai(this.model),
+        model: this.client(this.model),
         system: systemPrompt,
         prompt: userPrompt,
         schema: analysisSchema,
@@ -57,7 +57,7 @@ Also return a unified diff patch. Return ONLY valid JSON.`;
 
   async embed(text: string): Promise<number[]> {
     const embedding = await embed({
-      model: openai.embedding('text-embedding-3-small'),
+      model: this.client.embedding('text-embedding-3-small'),
       value: text,
     });
 
