@@ -38,6 +38,7 @@ export default function SettingsPage() {
   const [modelValue, setModelValue] = useState(selectedProviderDefinition?.models[0] ?? '')
   const [apiKeyValue, setApiKeyValue] = useState('')
   const [baseUrlValue, setBaseUrlValue] = useState(selectedProviderDefinition?.defaultBaseUrl ?? '')
+  const [settingsLoading, setSettingsLoading] = useState(true)
 
   const loadSettings = useCallback(async () => {
     try {
@@ -62,6 +63,8 @@ export default function SettingsPage() {
       setApiKeys(key.keys ?? [])
     } catch {
       toastError('Settings could not be loaded', 'Please try again in a moment.')
+    } finally {
+      setSettingsLoading(false)
     }
   }, [])
 
@@ -634,7 +637,23 @@ export default function SettingsPage() {
               </button>
             </form>
 
-            {llmConfigs?.configs?.length ? (
+            {settingsLoading ? (
+              <div className="mt-8 p-6 rounded-xl border border-black/[0.07] bg-white">
+                <div className="h-3 w-40 bg-black/10 animate-pulse mb-3" />
+                <div className="h-3 w-64 bg-black/5 animate-pulse mb-4" />
+                <div className="space-y-3">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-black/5">
+                      <div className="size-7 rounded-full bg-black/10 animate-pulse" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 w-32 bg-black/10 animate-pulse" />
+                        <div className="h-2.5 w-24 bg-black/5 animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : llmConfigs?.configs?.length ? (
               <div className="mt-8 p-6 rounded-xl border border-black/[0.07] bg-white">
                 <h3 className="text-sm font-light tracking-widest mb-3">SAVED API KEYS</h3>
                 <p className="text-xs text-black/40 mb-3">
@@ -698,7 +717,19 @@ export default function SettingsPage() {
             </RevealText>
             
             <div className="p-6 rounded-xl border border-black/[0.07] bg-white">
-              {githubConfigs?.repos?.length ? (
+              {settingsLoading ? (
+                <div className="space-y-3">
+                  <div className="h-4 w-2/3 bg-black/10 animate-pulse" />
+                  <div className="h-3 w-1/2 bg-black/5 animate-pulse" />
+                  <div className="flex items-center gap-3 pt-2">
+                    <div className="size-9 rounded-full bg-black/10 animate-pulse" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-32 bg-black/10 animate-pulse" />
+                      <div className="h-2.5 w-20 bg-black/5 animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              ) : githubConfigs?.repos?.length ? (
                 <div>
                   <p className="text-sm text-black/60 mb-4">
                     Connected to GitHub. Automatic PR creation and CI integration are enabled for this project.

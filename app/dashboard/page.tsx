@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [clustersLoading, setClustersLoading] = useState(true)
   const [investigationsLoading, setInvestigationsLoading] = useState(true)
+  const [githubLoading, setGithubLoading] = useState(true)
   const [projectId, setProjectId] = useState<string>()
   const [githubProfile, setGithubProfile] = useState<any>(null)
   const [githubRepos, setGithubRepos] = useState<any>(null)
@@ -28,10 +29,15 @@ export default function DashboardPage() {
       .then(data => {
         const id = data.project?.id as string | undefined
         setProjectId(id)
-        if (!id) return
+        if (!id) { setGithubLoading(false); return }
         const query = `?projectId=${encodeURIComponent(id)}`
-        fetch(`/api/github/profile${query}`).then(res => res.json()).then(d => { if (d.profile) setGithubProfile(d.profile) }).catch(() => {})
-        fetch(`/api/github/repos${query}`).then(res => res.json()).then(d => { if (d.repos) setGithubRepos(d.repos) }).catch(() => {})
+        Promise.allSettled([
+          fetch(`/api/github/profile${query}`).then(res => res.json()),
+          fetch(`/api/github/repos${query}`).then(res => res.json()),
+        ]).then(([profileResult, reposResult]) => {
+          if (profileResult.status === 'fulfilled' && profileResult.value?.profile) setGithubProfile(profileResult.value.profile)
+          if (reposResult.status === 'fulfilled' && reposResult.value?.repos) setGithubRepos(reposResult.value.repos)
+        }).finally(() => setGithubLoading(false))
         Promise.all([
           fetch(`/api/stats${query}`).then(res => res.json()),
           fetch(`/api/clusters${query}`).then(res => res.json()),
@@ -94,23 +100,33 @@ export default function DashboardPage() {
           </RevealText>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[
+            {statsLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="p-6 rounded-2xl border border-black/[0.07] bg-white">
+                  <div className="size-8 rounded-md bg-black/5 animate-pulse mb-4" />
+                  <div className="h-3 w-20 bg-black/5 animate-pulse mb-3" />
+                  <div className="h-8 w-16 bg-black/10 animate-pulse" />
+                </div>
+              ))
+            ) : (
+              [
               { label: 'Total Logs', value: stats?.totalLogs || 0, icon: '📊' },
               { label: 'Active Clusters', value: stats?.activeClusters || 0, icon: '🔍' },
               { label: 'Investigations', value: stats?.totalInvestigations || 0, icon: '🔬' },
               { label: 'Resolved Issues', value: stats?.resolvedIssues || 0, icon: '✅' },
-            ].map((stat) => (
-              <div 
-                key={stat.label}
-                className="p-6 rounded-2xl border border-black/[0.07] bg-white hover:bg-[#fafaf8] transition-all duration-500 hover:border-black/[0.15]"
-              >
-                <div className="text-3xl mb-2">{stat.icon}</div>
-                <div className="text-sm text-black/40 tracking-widest uppercase mb-1">{stat.label}</div>
-                <div className="text-3xl font-light" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
-                  {stat.value.toLocaleString()}
+              ].map((stat) => (
+                <div 
+                  key={stat.label}
+                  className="p-6 rounded-2xl border border-black/[0.07] bg-white hover:bg-[#fafaf8] transition-all duration-500 hover:border-black/[0.15]"
+                >
+                  <div className="text-3xl mb-2">{stat.icon}</div>
+                  <div className="text-sm text-black/40 tracking-widest uppercase mb-1">{stat.label}</div>
+                  <div className="text-3xl font-light" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
+                    {stat.value.toLocaleString()}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
 
@@ -121,7 +137,16 @@ export default function DashboardPage() {
           </RevealText>
           
           <div className="p-6 rounded-2xl border border-black/[0.07] bg-white">
-            {githubProfile ? (
+            {githubLoading ? (
+              <div className="flex items-center gap-4">
+                <div className="size-12 rounded-full bg-black/5 animate-pulse" />
+                <div className="flex-1 space-y-3">
+                  <div className="h-4 w-40 bg-black/10 animate-pulse" />
+                  <div className="h-3 w-24 bg-black/5 animate-pulse" />
+                  <div className="h-3 w-64 bg-black/5 animate-pulse" />
+                </div>
+              </div>
+            ) : githubProfile ? (
               <div>
                 <div className="flex items-center gap-4 mb-6">
                   {githubProfile.avatarUrl && (
@@ -183,7 +208,15 @@ export default function DashboardPage() {
           </div>
           
           {clustersLoading ? (
-            <div className="text-center py-8 text-black/40">Loading clusters...</div>
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-4 rounded-xl border border-black/[0.07] bg-white">
+                  <div className="h-4 w-2/3 bg-black/10 animate-pulse mb-2" />
+                  <div className="h-3 w-1/3 bg-black/5 animate-pulse mb-3" />
+                  <div className="h-3 w-1/2 bg-black/5 animate-pulse" />
+                </div>
+              ))}
+            </div>
           ) : clusters?.clusters?.length ? (
             <div className="space-y-3">
               {clusters.clusters.slice(0, 5).map((cluster: any) => (
@@ -229,7 +262,17 @@ export default function DashboardPage() {
           </div>
           
           {investigationsLoading ? (
-            <div className="text-center py-8 text-black/40">Loading investigations...</div>
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-4 rounded-xl border border-black/[0.07] bg-white">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div className="h-4 w-1/2 bg-black/10 animate-pulse" />
+                    <div className="h-4 w-20 rounded-full bg-black/5 animate-pulse" />
+                  </div>
+                  <div className="h-3 w-1/3 bg-black/5 animate-pulse" />
+                </div>
+              ))}
+            </div>
           ) : investigations?.investigations?.length ? (
             <div className="space-y-3">
               {investigations.investigations.slice(0, 5).map((inv: any) => (

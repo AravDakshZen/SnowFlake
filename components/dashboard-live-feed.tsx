@@ -77,10 +77,14 @@ function feedHref(event: FeedEvent): string | null {
 export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
   const [events, setEvents] = useState<FeedEvent[]>([])
   const [connected, setConnected] = useState(false)
+  const [loading, setLoading] = useState(true)
   const toastedIds = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    if (!projectId) return
+    if (!projectId) {
+      setLoading(false)
+      return
+    }
 
     let cancelled = false
 
@@ -94,6 +98,9 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
         if (history.length) setEvents((current) => [...history, ...current].slice(-24))
       })
       .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
 
     const source = new EventSource(`/api/logs/stream?projectId=${encodeURIComponent(projectId)}`)
     source.onopen = () => setConnected(true)
@@ -143,7 +150,19 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
         <div className="flex items-center gap-2 text-xs text-black/45"><span className={`size-2 rounded-full ${active ? 'animate-pulse bg-amber-500' : connected ? 'bg-emerald-500' : 'bg-black/20'}`} />{connected ? 'Connected' : 'Waiting'}</div>
       </div>
       <div className="flex max-h-72 flex-col gap-2 overflow-auto rounded-2xl border border-black/10 bg-white p-3">
-        {events.length === 0 ? <p className="px-3 py-8 text-center text-sm text-black/40">Live investigation events will appear here.</p> : events.slice().reverse().map((event, index) => {
+        {loading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3 rounded-xl px-3 py-2">
+                <div className="mt-1 size-2 shrink-0 rounded-full bg-black/5 animate-pulse" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-3 w-3/4 rounded bg-black/10 animate-pulse" />
+                  <div className="h-2.5 w-1/4 rounded bg-black/5 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : events.length === 0 ? <p className="px-3 py-8 text-center text-sm text-black/40">Live investigation events will appear here.</p> : events.slice().reverse().map((event, index) => {
           const tone = event.type.includes('escalated') ? 'text-red-600' : event.type.includes('complete') || event.type.includes('created') ? 'text-emerald-600' : event.type.includes('progress') || event.type.includes('queued') || event.type.includes('started') ? 'text-amber-600' : event.type.includes('failed') ? 'text-red-600' : 'text-sky-600'
           const href = feedHref(event)
           const inner = (
