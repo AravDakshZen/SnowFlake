@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
 import { PROVIDERS } from '@/lib/llm'
+import { toastSuccess, toastError, toastInfo, toastLoading } from '@/lib/toasts'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -16,9 +17,32 @@ export default function SettingsPage() {
   const [apiKey, setApiKey] = useState<any>(null)
   const [mounted, setMounted] = useState(false)
   const [projectId, setProjectId] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState('')
   const [selectedProvider, setSelectedProvider] = useState('openai')
+  const [feedback, setFeedback] = useState('')
   const selectedProviderDefinition = PROVIDERS[selectedProvider]
+
+  // The GitHub OAuth callback redirects back to /settings?github=<status>.
+  // Surface that status as a toast once, then strip the param from the URL.
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get('github')
+    if (!status) return
+    const url = new URL(window.location.href)
+    url.searchParams.delete('github')
+    window.history.replaceState(null, '', url.toString())
+    const messages: Record<string, { kind: 'success' | 'error' | 'info'; title: string; description?: string }> = {
+      connected: { kind: 'success', title: 'GitHub connected', description: 'Your repository integration is ready to use.' },
+      cancelled: { kind: 'info', title: 'GitHub authorization cancelled' },
+      invalid: { kind: 'error', title: 'GitHub connection failed', description: 'The authorization request was invalid. Please try again.' },
+      not_configured: { kind: 'error', title: 'GitHub is not configured', description: 'Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to your environment, then retry.' },
+      not_found: { kind: 'error', title: 'Project not found', description: 'Create a project before connecting GitHub.' },
+      failed: { kind: 'error', title: 'GitHub connection failed', description: 'The OAuth exchange did not complete. Check the GitHub App callback URL.' },
+    }
+    const config = messages[status]
+    if (!config) return
+    if (config.kind === 'success') toastSuccess(config.title, config.description)
+    else if (config.kind === 'error') toastError(config.title, config.description)
+    else toastInfo(config.title, config.description)
+  }, [])
 
   useEffect(() => {
     setMounted(true)
@@ -28,7 +52,7 @@ export default function SettingsPage() {
         const projectData = await projectResponse.json()
         const id = projectData.project?.id
         if (!projectResponse.ok || !id) {
-          setFeedback(projectData.error || 'Create a project before configuring integrations.')
+          toastError('No project yet', projectData.error || 'Create a project before configuring integrations.')
           return
         }
         setProjectId(id)
@@ -45,6 +69,7 @@ export default function SettingsPage() {
         setApiKey(key)
       } catch {
         setFeedback('Settings could not be loaded. Please try again.')
+        toastError('Settings could not be loaded', 'Please try again in a moment.')
       }
     }
     loadSettings()
@@ -73,9 +98,12 @@ export default function SettingsPage() {
       const result = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(result.error || 'Error saving LLM configuration')
       setFeedback('LLM configuration saved.')
+      toastSuccess('LLM configuration saved', `${selectedProviderDefinition.name} · ${data.model} is now the active provider.`)
       e.currentTarget.reset()
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Error saving LLM configuration')
+      const message = error instanceof Error ? error.message : 'Error saving LLM configuration'
+      setFeedback(message)
+      toastError('Could not save LLM configuration', message)
     } finally {
       setLoading(false)
     }
@@ -103,9 +131,12 @@ export default function SettingsPage() {
       const result = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(result.error || 'Error saving alert configuration')
       setFeedback('Alert configuration saved.')
+      toastSuccess('Alert configuration saved', 'You will now be notified on new high-severity clusters.')
       e.currentTarget.reset()
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Error saving alert configuration')
+      const message = error instanceof Error ? error.message : 'Error saving alert configuration'
+      setFeedback(message)
+      toastError('Could not save alert configuration', message)
     } finally {
       setLoading(false)
     }
@@ -226,9 +257,10 @@ export default function SettingsPage() {
                 Connect your GitHub account to enable automatic PR creation and CI integration.
               </p>
               <button type="button" disabled={!projectId || loading} onClick={async () => {
-                if (!projectId) return setFeedback('Create a project before connecting GitHub.')
+                if (!projectId) { setFeedback('Create a project before connecting GitHub.'); return toastError('No project yet', 'Create a project before connecting GitHub.') }
                 setLoading(true)
                 setFeedback('Opening GitHub authorization…')
+                toastInfo('Opening GitHub authorization', 'You will be redirected to GitHub to grant repo access.')
                 window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}`
               }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
                 {loading ? 'OPENING GITHUB…' : 'CONNECT GITHUB'}
@@ -305,7 +337,7 @@ export default function SettingsPage() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <button type="button" disabled={!projectId || loading} onClick={async () => {
-                  if (!projectId) return setFeedback('Create a project before generating an API key.')
+                  if (!projectId) { setFeedback('Create a project before generating an API key.'); return toastError('No project yet', 'Create a project before generating an API key.') }
                   setLoading(true)
                   try {
                     const response = await fetch('/api/project/apikey', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId, action: 'regenerate' }) })
@@ -313,9 +345,12 @@ export default function SettingsPage() {
                     if (!response.ok) throw new Error(result.error || 'Unable to generate API key')
                     setApiKey({ keyPrefix: result.apiKey.slice(0, 20), maskedKey: result.maskedKey })
                     setFeedback('New API key generated. Copy it now; it will not be shown again.')
+                    toastSuccess('API key generated', 'Copied to clipboard. It will not be shown again.')
                     await navigator.clipboard?.writeText(result.apiKey)
                   } catch (error) {
-                    setFeedback(error instanceof Error ? error.message : 'Unable to generate API key')
+                    const message = error instanceof Error ? error.message : 'Unable to generate API key'
+                    setFeedback(message)
+                    toastError('Could not generate API key', message)
                   } finally { setLoading(false) }
                 }} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
                   {loading ? 'GENERATING…' : 'GENERATE / REGENERATE KEY'}
