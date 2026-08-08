@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { toastSuccess, toastError, toastLoading, dismissToast } from '@/lib/toasts'
 
 export default function ClusterDetailPage() {
   const router = useRouter()
@@ -101,17 +102,26 @@ export default function ClusterDetailPage() {
         {/* Investigation Trigger */}
         <section>
           <button
-            onClick={() => {
-              fetch('/api/investigations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  cluster_id: id,
-                  question: `Investigate ${clusterData.title}`,
+            onClick={async () => {
+              const loadingId = toastLoading('Starting investigation…', 'Queuing the analysis pipeline.')
+              try {
+                const response = await fetch('/api/investigations', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    cluster_id: id,
+                    question: `Investigate ${clusterData.title}`,
+                  })
                 })
-              }).then(() => {
+                const data = await response.json().catch(() => ({}))
+                if (!response.ok) throw new Error(data.error || 'Unable to start investigation')
+                dismissToast(loadingId)
+                toastSuccess('Investigation started', `Analysis of "${clusterData.title}" is now running.`)
                 router.push('/investigations')
-              })
+              } catch (error) {
+                dismissToast(loadingId)
+                toastError('Could not start investigation', error instanceof Error ? error.message : 'Please try again.')
+              }
             }}
             className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors"
           >

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
 import { DashboardLiveFeed } from '@/components/dashboard-live-feed'
+import { toastError } from '@/lib/toasts'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -45,6 +46,7 @@ export default function DashboardPage() {
         setStatsLoading(false)
         setClustersLoading(false)
         setInvestigationsLoading(false)
+        toastError('Dashboard could not load', 'Please check your connection and try again.')
       })
   }, [])
 

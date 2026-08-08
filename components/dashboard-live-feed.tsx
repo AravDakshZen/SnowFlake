@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { toastSuccess, toastError } from '@/lib/toasts'
 
 type FeedEvent = { type: string; timestamp?: string; message?: string; [key: string]: unknown }
 
@@ -20,6 +21,7 @@ const labels: Record<string, string> = {
 export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
   const [events, setEvents] = useState<FeedEvent[]>([])
   const [connected, setConnected] = useState(false)
+  const toastedIds = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (!projectId) return
@@ -29,6 +31,21 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
       try {
         const next = JSON.parse(event.data) as FeedEvent
         if (next.type !== 'heartbeat') setEvents((current) => [...current, next].slice(-12))
+
+        const eventId = (next.id as string | undefined) ?? `${next.type}-${next.timestamp ?? Date.now()}`
+        if (toastedIds.current.has(eventId)) return
+        const message = next.message || labels[next.type] || next.type
+
+        if (next.type === 'investigation:complete') {
+          toastedIds.current.add(eventId)
+          toastSuccess('Investigation complete', message)
+        } else if (next.type === 'pr:created') {
+          toastedIds.current.add(eventId)
+          toastSuccess('Pull request created', message)
+        } else if (next.type === 'alert:escalated') {
+          toastedIds.current.add(eventId)
+          toastError('Alert escalated', message)
+        }
       } catch {}
     }
     source.onerror = () => setConnected(false)

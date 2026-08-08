@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
+import { toastError } from '@/lib/toasts'
 
 export default function InvestigationDetailPage() {
   const router = useRouter()
@@ -19,7 +20,7 @@ export default function InvestigationDetailPage() {
           setInvestigation(data)
           setIsLoading(false)
         })
-        .catch(() => setIsLoading(false))
+        .catch(() => { setIsLoading(false); toastError('Could not load investigation details', 'Please try again in a moment.') })
     }
   }, [id])
 

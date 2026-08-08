@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
+import { toastError } from '@/lib/toasts'
 
 export default function InvestigationsPage() {
   const router = useRouter()
@@ -18,7 +19,7 @@ export default function InvestigationsPage() {
         setInvestigations(data)
         setIsLoading(false)
       })
-      .catch(() => setIsLoading(false))
+      .catch(() => { setIsLoading(false); toastError('Could not load investigations', 'Please try again in a moment.') })
   }, [])
 
   const filtered = investigations?.data?.filter((inv: any) => {

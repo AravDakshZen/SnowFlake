@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
+import { toastError } from '@/lib/toasts'
 
 export default function ClustersPage() {
   const router = useRouter()
@@ -19,7 +20,7 @@ export default function ClustersPage() {
         setClusters(data)
         setIsLoading(false)
       })
-      .catch(() => setIsLoading(false))
+      .catch(() => { setIsLoading(false); toastError('Could not load error clusters', 'Please try again in a moment.') })
   }, [])
 
   const filtered = clusters?.data?.filter((c: any) => {
