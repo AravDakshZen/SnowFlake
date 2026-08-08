@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     const model = String(body.model || '');
     const baseUrl = body.baseUrl ?? body.base_url ?? null;
     const isDefault = Boolean(body.isDefault ?? body.is_default ?? false);
+    const configId = String(body.configId ?? body.config_id ?? '');
     const sql = getSql();
     const requestedProjectId = body.projectId ?? body.project_id ?? null;
     const projectRows = requestedProjectId
@@ -25,7 +26,19 @@ export async function POST(request: NextRequest) {
       : await sql`SELECT id FROM public.projects WHERE user_id = ${session.user.id} ORDER BY created_at ASC LIMIT 1`;
     const projectId = projectRows[0]?.id as string | undefined;
 
-    if (!provider || (!apiKey && provider !== 'ollama') || !model || !projectId) {
+    // When editing an existing config, the API key may be left blank to keep
+    // the stored one. Look up the existing encrypted key before validating.
+    let resolvedApiKey = apiKey;
+    if (!resolvedApiKey && projectId) {
+      const existing = configId
+        ? await sql`SELECT encrypted_key FROM public.llm_configs WHERE id = ${configId} AND user_id = ${session.user.id} LIMIT 1`
+        : await sql`SELECT encrypted_key FROM public.llm_configs WHERE project_id = ${projectId} AND provider = ${provider} AND user_id = ${session.user.id} LIMIT 1`;
+      if (existing.length > 0 && existing[0].encrypted_key) {
+        resolvedApiKey = decryptValue(existing[0].encrypted_key);
+      }
+    }
+
+    if (!provider || (!resolvedApiKey && provider !== 'ollama') || !model || !projectId) {
       return NextResponse.json({ error: 'Choose a provider and model. A project and provider key are required.' }, { status: 400 });
     }
 
@@ -36,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     let latencyMs: number;
     try {
-      const llmProvider = await getLLMProvider(provider, apiKey, model, baseUrl);
+      const llmProvider = await getLLMProvider(provider, resolvedApiKey, model, baseUrl);
       const startTime = Date.now();
       await llmProvider.isAvailable();
       latencyMs = Date.now() - startTime;
@@ -49,8 +62,16 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // Encrypt API key
-      const encryptedKey = encryptValue(apiKey);
+      // Encrypt API key (or reuse the stored key when editing with a blank field)
+      const encryptedKey = apiKey ? encryptValue(apiKey) : (
+        configId
+          ? (await sql`SELECT encrypted_key FROM public.llm_configs WHERE id = ${configId} AND user_id = ${session.user.id} LIMIT 1`)[0]?.encrypted_key
+          : null
+      );
+
+      if (!encryptedKey) {
+        return NextResponse.json({ error: 'API key is required' }, { status: 400 });
+      }
 
       // Save or update config
       const result = await sql`

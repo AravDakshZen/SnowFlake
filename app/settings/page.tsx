@@ -23,6 +23,9 @@ export default function SettingsPage() {
   const [selectedProvider, setSelectedProvider] = useState('openai')
   const [events, setEvents] = useState<any[]>([])
   const [githubProfile, setGithubProfile] = useState<{ login: string; avatarUrl: string | null; name?: string } | null>(null)
+  const [editingEventId, setEditingEventId] = useState<string | null>(null)
+  const [editingEventModels, setEditingEventModels] = useState<{ fixProvider: string; fixModel: string; commitProvider: string; commitModel: string }>({ fixProvider: '', fixModel: '', commitProvider: '', commitModel: '' })
+  const defaultPrefilled = React.useRef(false)
   const [eventForm, setEventForm] = useState<{
     name: string; repoOwner: string; repoName: string; defaultBranch: string; triggerNow: boolean;
     fixProvider: string; fixModel: string; commitProvider: string; commitModel: string;
@@ -31,6 +34,10 @@ export default function SettingsPage() {
     fixProvider: '', fixModel: '', commitProvider: '', commitModel: '',
   })
   const selectedProviderDefinition = PROVIDERS[selectedProvider]
+  const [editingConfigId, setEditingConfigId] = useState<string | null>(null)
+  const [modelValue, setModelValue] = useState(selectedProviderDefinition?.models[0] ?? '')
+  const [apiKeyValue, setApiKeyValue] = useState('')
+  const [baseUrlValue, setBaseUrlValue] = useState(selectedProviderDefinition?.defaultBaseUrl ?? '')
 
   const loadSettings = useCallback(async () => {
     try {
@@ -115,18 +122,40 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
+  // When the saved LLM configs first arrive, prefill the create-event form
+  // with the project's default provider + model so the event form always
+  // reflects the active config and the worker can actually call it.
+  useEffect(() => {
+    if (defaultPrefilled.current) return
+    const configs: any[] = llmConfigs?.configs ?? []
+    if (!configs.length) return
+    const def = configs.find((c: any) => c.is_default) ?? configs[0]
+    if (!def?.provider || !def?.model) return
+    defaultPrefilled.current = true
+    setEventForm((f) => ({
+      ...f,
+      fixProvider: def.provider,
+      fixModel: def.model,
+      commitProvider: def.provider,
+      commitModel: def.model,
+    }))
+  }, [llmConfigs])
+
+  const savedLlmOptions: { value: string; label: string }[] = (llmConfigs?.configs ?? [])
+    .filter((c: any) => c.provider && c.model)
+    .map((c: any) => ({ value: `${c.provider}|${c.model}`, label: `${PROVIDERS[c.provider]?.name ?? c.provider} · ${c.model}${c.is_default ? ' (default)' : ''}` }))
+
   const handleLLMSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const form = e.currentTarget
     setActionLoading('llm')
     
-    const formData = new FormData(form)
     const data = {
-      provider: formData.get('provider'),
-      model: formData.get('model'),
-      api_key: formData.get('api_key'),
-      base_url: formData.get('base_url') || null,
+      provider: selectedProvider,
+      model: modelValue,
+      api_key: apiKeyValue,
+      base_url: baseUrlValue || null,
       project_id: projectId,
+      config_id: editingConfigId,
     }
 
     try {
@@ -139,7 +168,8 @@ export default function SettingsPage() {
       const result = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(result.error || 'Error saving LLM configuration')
       toastSuccess('LLM configuration saved', `${selectedProviderDefinition.name} · ${data.model} is now the active provider.`)
-      form.reset()
+      setEditingConfigId(null)
+      setApiKeyValue('')
       if (projectId) {
         fetch(`/api/settings/llm?projectId=${encodeURIComponent(projectId)}`).then(r => r.json()).then((d) => setLLMConfigs(d)).catch(() => {})
       }
@@ -149,6 +179,24 @@ export default function SettingsPage() {
     } finally {
       setActionLoading(null)
     }
+  }
+
+  const handleLLMEditConfig = (config: any) => {
+    setSelectedProvider(config.provider)
+    setModelValue(config.model)
+    setApiKeyValue('')
+    setBaseUrlValue(config.base_url ?? PROVIDERS[config.provider]?.defaultBaseUrl ?? '')
+    setEditingConfigId(config.id)
+    document.getElementById('llm-config-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    toastInfo('Editing saved configuration', 'Change the model or paste a new API key. Leave the key blank to keep the saved one.')
+  }
+
+  const handleProviderChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const provider = event.target.value
+    setSelectedProvider(provider)
+    setModelValue(PROVIDERS[provider]?.models[0] ?? '')
+    setBaseUrlValue(PROVIDERS[provider]?.defaultBaseUrl ?? '')
+    setEditingConfigId(null)
   }
 
   const handleLLMSetDefault = async (configId: string) => {
@@ -218,7 +266,13 @@ export default function SettingsPage() {
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Error creating event')
-      setEventForm({ name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true, fixProvider: '', fixModel: '', commitProvider: '', commitModel: '' })
+      const configs: any[] = llmConfigs?.configs ?? []
+      const def = configs.find((c: any) => c.is_default) ?? configs[0]
+      setEventForm({
+        name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true,
+        fixProvider: def?.provider ?? '', fixModel: def?.model ?? '',
+        commitProvider: def?.provider ?? '', commitModel: def?.model ?? '',
+      })
       await loadEvents()
       toastSuccess('Event created', `"${result.event?.name}" is now watching ${result.event?.repo_owner}/${result.event?.repo_name}.`)
     } catch (error) {
@@ -261,6 +315,27 @@ export default function SettingsPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error deleting event'
       toastError('Could not delete event', message)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleEventModelUpdate = async (id: string) => {
+    setActionLoading(`event-models-${id}`)
+    try {
+      const response = await fetch(`/api/events/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...editingEventModels }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Error updating event models')
+      setEditingEventId(null)
+      await loadEvents()
+      toastSuccess('Event models updated', 'Future runs will use the selected providers.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error updating event models'
+      toastError('Could not update event models', message)
     } finally {
       setActionLoading(null)
     }
@@ -515,14 +590,10 @@ export default function SettingsPage() {
               LLM Configuration
             </RevealText>
             
-            <form onSubmit={handleLLMSubmit} className="space-y-6">
+            <form id="llm-config-form" onSubmit={handleLLMSubmit} className="space-y-6">
               <div>
                 <label className="mb-2 block text-xs tracking-widest text-black/40">PROVIDER</label>
-                <div className="mb-3 flex items-center gap-3 rounded-xl border border-black/[0.07] bg-white px-4 py-3">
-                  <ProviderChip providerId={selectedProvider} size={32} />
-                  <div className="min-w-0"><p className="text-sm font-medium">{selectedProviderDefinition.name}</p><p className="truncate text-xs text-black/45">Provider brand and available model catalog</p></div>
-                </div>
-                <select name="provider" value={selectedProvider} onChange={(event) => setSelectedProvider(event.target.value)} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
+                <select name="provider" value={selectedProvider} onChange={handleProviderChange} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
                   {Object.values(PROVIDERS).map((provider) => <option key={provider.id} value={provider.id}>{provider.icon}  {provider.name}</option>)}
                 </select>
                 <p className="mt-2 text-xs text-black/45">{selectedProviderDefinition.description}</p>
@@ -530,14 +601,14 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-xs tracking-widest text-black/40 mb-2">MODEL</label>
-                <select name="model" defaultValue={selectedProviderDefinition.models[0]} key={selectedProvider} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
+                <select name="model" value={modelValue} onChange={(e) => setModelValue(e.target.value)} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
                   {selectedProviderDefinition.models.map((model) => <option key={model} value={model}>{model}</option>)}
                 </select>
               </div>
 
               {selectedProviderDefinition.defaultBaseUrl && <div>
                 <label className="block text-xs tracking-widest text-black/40 mb-2">BASE URL</label>
-                <input type="url" name="base_url" defaultValue={selectedProviderDefinition.defaultBaseUrl} className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20" />
+                <input type="url" name="base_url" value={baseUrlValue} onChange={(e) => setBaseUrlValue(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20" />
               </div>}
 
               <div>
@@ -545,10 +616,13 @@ export default function SettingsPage() {
                 <input 
                   type="password" 
                   name="api_key" 
-                  placeholder="Your API key (encrypted)" 
-                  required 
+                  value={apiKeyValue}
+                  onChange={(e) => setApiKeyValue(e.target.value)}
+                  placeholder={editingConfigId ? 'Leave blank to keep the saved key' : 'Your API key (encrypted)'} 
+                  required={!editingConfigId}
                   className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
                 />
+                {editingConfigId && <p className="mt-1.5 text-xs text-black/45">Editing existing configuration — leave the key blank to keep the stored one.</p>}
               </div>
 
               <button
@@ -556,7 +630,7 @@ export default function SettingsPage() {
                 disabled={actionLoading === 'llm'}
                 className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
               >
-                {actionLoading === 'llm' ? 'SAVING...' : 'SAVE CONFIGURATION'}
+                {actionLoading === 'llm' ? 'SAVING...' : editingConfigId ? 'SAVE CHANGES' : 'SAVE CONFIGURATION'}
               </button>
             </form>
 
@@ -582,6 +656,13 @@ export default function SettingsPage() {
                           {config.maskedKey && <div className="mt-1 font-mono text-xs text-black/40">{config.maskedKey}</div>}
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleLLMEditConfig(config)}
+                            className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
+                          >
+                            EDIT
+                          </button>
                           {!config.is_default && (
                             <button
                               type="button"
@@ -768,65 +849,41 @@ export default function SettingsPage() {
                   <div className="rounded-xl border border-black/[0.07] bg-black/[0.02] p-4">
                     <label className="block text-xs tracking-widest text-black/40 mb-1">FIX / PATCH MODEL</label>
                     <p className="text-xs text-black/45 mb-3">
-                      Analyzes the latest commit and generates the fix patch. Leave as default to use your saved LLM config.
+                      Analyzes the latest commit and generates the fix patch. Prefilled with your default provider. Only providers with a saved API key can be used.
                     </p>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <select
-                        value={eventForm.fixProvider}
-                        onChange={(e) => {
-                          const provider = e.target.value
-                          setEventForm((f) => ({ ...f, fixProvider: provider, fixModel: provider ? PROVIDERS[provider]?.models[0] ?? '' : '' }))
-                        }}
-                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
-                      >
-                        <option value="">Default (saved config)</option>
-                        {Object.values(PROVIDERS).map((p) => (
-                          <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={eventForm.fixModel}
-                        disabled={!eventForm.fixProvider}
-                        onChange={(e) => setEventForm((f) => ({ ...f, fixModel: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20 disabled:opacity-40"
-                      >
-                        {eventForm.fixProvider && PROVIDERS[eventForm.fixProvider]?.models.map((m) => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <select
+                      value={eventForm.fixProvider && eventForm.fixModel ? `${eventForm.fixProvider}|${eventForm.fixModel}` : ''}
+                      onChange={(e) => {
+                        const [provider, model] = e.target.value.split('|')
+                        if (provider && model) setEventForm((f) => ({ ...f, fixProvider: provider, fixModel: model }))
+                      }}
+                      className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                    >
+                      <option value="" disabled>Select a saved provider + model</option>
+                      {savedLlmOptions.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="rounded-xl border border-black/[0.07] bg-black/[0.02] p-4">
                     <label className="block text-xs tracking-widest text-black/40 mb-1">COMMIT MESSAGE MODEL</label>
                     <p className="text-xs text-black/45 mb-3">
-                      Writes the commit message when the auto-fix PR is opened. Leave as default to use your saved LLM config.
+                      Writes the commit message when the auto-fix PR is opened. Prefilled with your default provider.
                     </p>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <select
-                        value={eventForm.commitProvider}
-                        onChange={(e) => {
-                          const provider = e.target.value
-                          setEventForm((f) => ({ ...f, commitProvider: provider, commitModel: provider ? PROVIDERS[provider]?.models[0] ?? '' : '' }))
-                        }}
-                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
-                      >
-                        <option value="">Default (saved config)</option>
-                        {Object.values(PROVIDERS).map((p) => (
-                          <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={eventForm.commitModel}
-                        disabled={!eventForm.commitProvider}
-                        onChange={(e) => setEventForm((f) => ({ ...f, commitModel: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20 disabled:opacity-40"
-                      >
-                        {eventForm.commitProvider && PROVIDERS[eventForm.commitProvider]?.models.map((m) => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <select
+                      value={eventForm.commitProvider && eventForm.commitModel ? `${eventForm.commitProvider}|${eventForm.commitModel}` : ''}
+                      onChange={(e) => {
+                        const [provider, model] = e.target.value.split('|')
+                        if (provider && model) setEventForm((f) => ({ ...f, commitProvider: provider, commitModel: model }))
+                      }}
+                      className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                    >
+                      <option value="" disabled>Select a saved provider + model</option>
+                      {savedLlmOptions.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -868,9 +925,30 @@ export default function SettingsPage() {
                               <div className="mt-0.5 text-xs text-black/45 truncate">
                                 {event.repo_owner}/{event.repo_name} · {event.default_branch}
                               </div>
+                              {event.fix_provider && (
+                                <div className="mt-0.5 text-xs text-black/40 truncate">
+                                  Fix: {PROVIDERS[event.fix_provider]?.name ?? event.fix_provider} · {event.fix_model}
+                                  {event.commit_provider ? ` · Commit msg: ${PROVIDERS[event.commit_provider]?.name ?? event.commit_provider} · ${event.commit_model}` : ''}
+                                </div>
+                              )}
                               {event.error && <div className="mt-1 text-xs text-red-600">{event.error}</div>}
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingEventId(editingEventId === event.id ? null : event.id)
+                                  setEditingEventModels({
+                                    fixProvider: event.fix_provider ?? '',
+                                    fixModel: event.fix_model ?? '',
+                                    commitProvider: event.commit_provider ?? '',
+                                    commitModel: event.commit_model ?? '',
+                                  })
+                                }}
+                                className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
+                              >
+                                {editingEventId === event.id ? 'CANCEL' : 'EDIT MODELS'}
+                              </button>
                               <button
                                 type="button"
                                 disabled={actionLoading === `event-run-${event.id}` || (event.status === 'analyzing' || event.status === 'running')}
@@ -889,6 +967,59 @@ export default function SettingsPage() {
                               </button>
                             </div>
                           </div>
+                          {editingEventId === event.id && (
+                            <div className="mt-3 space-y-3 rounded-lg border border-black/10 bg-white p-3">
+                              <div>
+                                <label className="mb-1.5 block text-[10px] tracking-widest text-black/40">FIX / PATCH MODEL</label>
+                                <select
+                                  value={editingEventModels.fixProvider && editingEventModels.fixModel ? `${editingEventModels.fixProvider}|${editingEventModels.fixModel}` : ''}
+                                  onChange={(e) => {
+                                    const [provider, model] = e.target.value.split('|')
+                                    if (provider && model) setEditingEventModels((m) => ({ ...m, fixProvider: provider, fixModel: model }))
+                                  }}
+                                  className="w-full px-3 py-2 rounded-lg border border-black/10 bg-white text-sm focus:outline-none focus:border-black/20"
+                                >
+                                  <option value="" disabled>Select a saved provider + model</option>
+                                  {savedLlmOptions.map((o) => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="mb-1.5 block text-[10px] tracking-widest text-black/40">COMMIT MESSAGE MODEL</label>
+                                <select
+                                  value={editingEventModels.commitProvider && editingEventModels.commitModel ? `${editingEventModels.commitProvider}|${editingEventModels.commitModel}` : ''}
+                                  onChange={(e) => {
+                                    const [provider, model] = e.target.value.split('|')
+                                    if (provider && model) setEditingEventModels((m) => ({ ...m, commitProvider: provider, commitModel: model }))
+                                  }}
+                                  className="w-full px-3 py-2 rounded-lg border border-black/10 bg-white text-sm focus:outline-none focus:border-black/20"
+                                >
+                                  <option value="" disabled>Select a saved provider + model</option>
+                                  {savedLlmOptions.map((o) => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  disabled={actionLoading === `event-models-${event.id}`}
+                                  onClick={() => handleEventModelUpdate(event.id)}
+                                  className="px-4 py-2 rounded-lg bg-black text-white text-xs font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
+                                >
+                                  {actionLoading === `event-models-${event.id}` ? 'SAVING…' : 'SAVE MODELS'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingEventId(null)}
+                                  className="px-4 py-2 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
+                                >
+                                  CANCEL
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
