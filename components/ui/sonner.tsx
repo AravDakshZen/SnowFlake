@@ -13,14 +13,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
       <Sonner
         theme={theme as ToasterProps['theme']}
         className="toaster group"
-        position="top-right"
+        position="bottom-right"
         richColors
         closeButton
         expand
         visibleToasts={5}
         gap={10}
         toastOptions={{
-          duration: 3500,
+          duration: 3000,
           classNames: {
             toast:
               '!rounded-2xl !shadow-[0_16px_48px_rgba(0,0,0,0.18)] !border-[0.5px] group-[.toaster]:!bg-white',
