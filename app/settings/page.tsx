@@ -7,6 +7,10 @@ import { PixelIcon } from '@/components/pixel-icon'
 import { ProviderChip, getProviderBrand } from '@/components/provider-icons'
 import { PROVIDERS } from '@/lib/llm'
 import { toastSuccess, toastError, toastInfo, toastLoading } from '@/lib/toasts'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Spinner } from '@/components/ui/spinner'
+import { RefreshCw } from 'lucide-react'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -620,18 +624,25 @@ export default function SettingsPage() {
             <form id="llm-config-form" onSubmit={handleLLMSubmit} className="space-y-6">
               <div>
                 <label className="mb-2 block text-xs tracking-widest text-black/40">PROVIDER</label>
-                <select name="provider" value={selectedProvider} onChange={handleProviderChange} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
-                  {Object.values(PROVIDERS).map((provider) => (
-                    <option key={provider.id} value={provider.id}>
-                      {provider.name}{provider.isFree ? ' (FREE)' : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <select name="provider" value={selectedProvider} onChange={handleProviderChange} required className="w-full pl-10 pr-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
+                      {Object.values(PROVIDERS).map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.name}{provider.isFree ? ' (FREE)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <ProviderChip providerId={selectedProvider} size={20} />
+                    </div>
+                  </div>
+                </div>
                 {selectedProviderDefinition.isFree && (
-                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] tracking-widest font-medium">
+                  <Badge variant="secondary" className="mt-2 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
                     <span className="size-1.5 rounded-full bg-emerald-500" />
                     FREE TIER AVAILABLE
-                  </div>
+                  </Badge>
                 )}
                 <p className="mt-2 text-xs text-black/45">{selectedProviderDefinition.description}</p>
               </div>
@@ -660,20 +671,28 @@ export default function SettingsPage() {
                       ))
                     )}
                   </select>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="icon"
                     onClick={() => fetchDynamicModels(selectedProvider)}
                     disabled={modelsLoading}
-                    className="px-3 py-3 rounded-xl border border-black/[0.07] bg-white text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
                     title="Refresh models from provider"
                   >
-                    {modelsLoading ? '...' : '↻'}
-                  </button>
+                    {modelsLoading ? <Spinner /> : <RefreshCw className="size-4" />}
+                  </Button>
                 </div>
                 {dynamicModels.length > 0 && (
-                  <p className="mt-1.5 text-xs text-black/45">
-                    {dynamicModels.filter(m => m.isFree).length} free models available
-                  </p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="text-xs text-black/45">
+                      {dynamicModels.length} models loaded
+                    </span>
+                    {dynamicModels.filter(m => m.isFree).length > 0 && (
+                      <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]">
+                        {dynamicModels.filter(m => m.isFree).length} free
+                      </Badge>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -761,14 +780,16 @@ export default function SettingsPage() {
                                     ))
                                   )}
                                 </select>
-                                <button
+                                <Button
                                   type="button"
+                                  variant="outline"
+                                  size="icon-sm"
                                   onClick={() => fetchDynamicModels(config.provider)}
                                   disabled={modelsLoading}
-                                  className="px-2 py-2 rounded-lg border border-black/[0.07] bg-white text-xs hover:bg-black/5 transition-colors disabled:opacity-50"
+                                  title="Refresh models from provider"
                                 >
-                                  {modelsLoading ? '...' : '↻'}
-                                </button>
+                                  {modelsLoading ? <Spinner className="size-3" /> : <RefreshCw className="size-3" />}
+                                </Button>
                               </div>
                             </div>
 
