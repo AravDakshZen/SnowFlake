@@ -16,6 +16,17 @@ const PROVIDER_LOGOS: Record<string, string> = {
   cerebras: '/logos/cerebras.svg',
 }
 
+// Preload critical provider logos on module load
+if (typeof window !== 'undefined') {
+  Object.values(PROVIDER_LOGOS).forEach(src => {
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'image'
+    link.href = src
+    document.head.appendChild(link)
+  })
+}
+
 interface ProviderOption {
   id: string
   name: string
@@ -115,6 +126,8 @@ export function ProviderLogo({ providerId, size = 24 }: { providerId: string; si
         alt={`${providerId} logo`}
         width={size}
         height={size}
+        loading="lazy"
+        decoding="async"
         className="rounded-md object-contain"
         style={{ width: size, height: size }}
       />

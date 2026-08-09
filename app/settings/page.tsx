@@ -11,7 +11,7 @@ import { toastSuccess, toastError, toastInfo, toastLoading } from '@/lib/toasts'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
-import { RefreshCw, LogOut, CheckCircle2, XCircle } from 'lucide-react'
+import { RefreshCw, LogOut, CheckCircle2, XCircle, Key, Trash2, Save, User, Lock, Mail, AlertTriangle, Plus, Pencil, Play, X, Copy } from 'lucide-react'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -587,7 +587,9 @@ export default function SettingsPage() {
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-black/[0.06]">
         <div className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="text-xl">←</button>
+            <Button variant="ghost" size="icon" onClick={() => router.back()}>
+              <span className="text-xl">←</span>
+            </Button>
             <h1 className="text-xl font-light tracking-tight" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
               Settings
             </h1>
@@ -601,17 +603,18 @@ export default function SettingsPage() {
         {/* Tabs */}
         <div className="flex gap-2 mb-8 border-b border-black/[0.06]">
           {['llm', 'github', 'alerts', 'api', 'profile'].map((tab) => (
-            <button
+            <Button
               key={tab}
+              variant="ghost"
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-light tracking-widest transition-all border-b-2 ${
+              className={`px-4 py-3 text-sm font-light tracking-widest transition-all border-b-2 rounded-none ${
                 activeTab === tab
                   ? 'border-black text-black'
                   : 'border-transparent text-black/40 hover:text-black'
               }`}
             >
               {tab === 'llm' ? 'LLM PROVIDERS' : tab === 'github' ? 'GITHUB' : tab === 'alerts' ? 'ALERTS' : tab === 'api' ? 'API KEY' : 'PROFILE'}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -718,13 +721,10 @@ export default function SettingsPage() {
                 {editingConfigId && <p className="mt-1.5 text-xs text-black/45">Editing existing configuration — leave the key blank to keep the stored one.</p>}
               </div>
 
-              <button
-                type="submit"
-                disabled={actionLoading === 'llm'}
-                className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
-              >
+              <Button type="submit" disabled={actionLoading === 'llm'} className="w-full">
+                <Save className="mr-2 h-4 w-4" />
                 {actionLoading === 'llm' ? 'SAVING...' : editingConfigId ? 'SAVE CHANGES' : 'SAVE CONFIGURATION'}
-              </button>
+              </Button>
             </form>
 
             {settingsLoading ? (
@@ -820,21 +820,14 @@ export default function SettingsPage() {
                             </div>
 
                             <div className="flex gap-2 pt-1">
-                              <button
-                                type="button"
-                                disabled={actionLoading === 'llm'}
-                                onClick={(e) => handleLLMSubmit(e as any)}
-                                className="flex-1 px-4 py-2 rounded-lg bg-black text-white text-xs font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
-                              >
+                              <Button type="button" disabled={actionLoading === 'llm'} onClick={(e) => handleLLMSubmit(e as any)} className="flex-1" size="sm">
+                                <Save className="mr-2 h-3 w-3" />
                                 {actionLoading === 'llm' ? 'SAVING…' : 'SAVE CHANGES'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingConfigId(null)}
-                                className="px-4 py-2 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
-                              >
+                              </Button>
+                              <Button type="button" variant="outline" onClick={() => setEditingConfigId(null)} size="sm">
+                                <X className="mr-2 h-3 w-3" />
                                 CANCEL
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         ) : (
@@ -851,31 +844,19 @@ export default function SettingsPage() {
                               {config.maskedKey && <div className="mt-1 font-mono text-xs text-black/40">{config.maskedKey}</div>}
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleLLMEditConfig(config)}
-                                className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
-                              >
+                              <Button type="button" variant="outline" size="sm" onClick={() => handleLLMEditConfig(config)}>
+                                <Pencil className="mr-1 h-3 w-3" />
                                 EDIT
-                              </button>
+                              </Button>
                               {!config.is_default && (
-                                <button
-                                  type="button"
-                                  disabled={actionLoading === `llm-default-${config.id}`}
-                                  onClick={() => handleLLMSetDefault(config.id)}
-                                  className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors disabled:opacity-50"
-                                >
+                                <Button type="button" variant="outline" size="sm" disabled={actionLoading === `llm-default-${config.id}`} onClick={() => handleLLMSetDefault(config.id)}>
                                   {actionLoading === `llm-default-${config.id}` ? 'SETTING…' : 'SET DEFAULT'}
-                                </button>
+                                </Button>
                               )}
-                              <button
-                                type="button"
-                                disabled={actionLoading === `llm-delete-${config.id}`}
-                                onClick={() => handleLLMDeleteConfig(config.id)}
-                                className="px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-light tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50"
-                              >
+                              <Button type="button" variant="destructive" size="sm" disabled={actionLoading === `llm-delete-${config.id}`} onClick={() => handleLLMDeleteConfig(config.id)}>
+                                <Trash2 className="mr-1 h-3 w-3" />
                                 {actionLoading === `llm-delete-${config.id}` ? 'REMOVING…' : 'REMOVE'}
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         )}
@@ -933,15 +914,16 @@ export default function SettingsPage() {
                       <CheckCircle2 className="size-4 text-green-600" />
                       <span className="text-sm font-medium text-green-700">Connected</span>
                     </div>
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
                       disabled={actionLoading === 'github'}
                       onClick={handleGitHubDisconnect}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-red-200 bg-white text-red-600 text-sm font-medium hover:bg-red-50 hover:border-red-300 transition-all disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+                      className="border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300"
                     >
-                      <LogOut className="size-4" />
+                      <LogOut className="size-4 mr-2" />
                       {actionLoading === 'github' ? 'Disconnecting…' : 'Disconnect GitHub'}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -949,15 +931,19 @@ export default function SettingsPage() {
                   <p className="text-sm text-black/60 mb-4">
                     Connect your GitHub account to enable automatic PR creation and CI integration.
                   </p>
-                  <button type="button" disabled={!projectId || actionLoading === 'github-connect'} onClick={async () => {
-                    if (!projectId) { return toastError('No project yet', 'Create a project before connecting GitHub.') }
-                    setActionLoading('github-connect')
-                    toastInfo('Opening GitHub authorization', 'You will be redirected to GitHub to grant repo access.')
-                    window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}`
-                  }} className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
-                    <svg viewBox="0 0 16 16" className="size-4 fill-current" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+                  <Button
+                    type="button"
+                    disabled={!projectId || actionLoading === 'github-connect'}
+                    onClick={async () => {
+                      if (!projectId) { return toastError('No project yet', 'Create a project before connecting GitHub.') }
+                      setActionLoading('github-connect')
+                      toastInfo('Opening GitHub authorization', 'You will be redirected to GitHub to grant repo access.')
+                      window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}`
+                    }}
+                  >
+                    <svg viewBox="0 0 16 16" className="size-4 fill-current mr-2" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
                     {actionLoading === 'github-connect' ? 'OPENING GITHUB…' : 'CONNECT GITHUB'}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -1108,13 +1094,10 @@ export default function SettingsPage() {
                     />
                     <label htmlFor="event-trigger-now" className="text-sm text-black/60">Run analysis immediately on creation</label>
                   </div>
-                  <button
-                    type="submit"
-                    disabled={actionLoading === 'event-create'}
-                    className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
-                  >
+                  <Button type="submit" disabled={actionLoading === 'event-create'}>
+                    <Plus className="mr-2 h-4 w-4" />
                     {actionLoading === 'event-create' ? 'CREATING…' : 'CREATE EVENT'}
-                  </button>
+                  </Button>
                 </form>
 
                 {events.length > 0 && (
@@ -1146,37 +1129,26 @@ export default function SettingsPage() {
                               {event.error && <div className="mt-1 text-xs text-red-600">{event.error}</div>}
                             </div>
                             <div className="flex shrink-0 items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingEventId(editingEventId === event.id ? null : event.id)
-                                  setEditingEventModels({
-                                    fixProvider: event.fix_provider ?? '',
-                                    fixModel: event.fix_model ?? '',
-                                    commitProvider: event.commit_provider ?? '',
-                                    commitModel: event.commit_model ?? '',
-                                  })
-                                }}
-                                className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
-                              >
+                              <Button type="button" variant="outline" size="sm" onClick={() => {
+                                setEditingEventId(editingEventId === event.id ? null : event.id)
+                                setEditingEventModels({
+                                  fixProvider: event.fix_provider ?? '',
+                                  fixModel: event.fix_model ?? '',
+                                  commitProvider: event.commit_provider ?? '',
+                                  commitModel: event.commit_model ?? '',
+                                })
+                              }}>
+                                <Pencil className="mr-1 h-3 w-3" />
                                 {editingEventId === event.id ? 'CANCEL' : 'EDIT MODELS'}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={actionLoading === `event-run-${event.id}` || (event.status === 'analyzing' || event.status === 'running')}
-                                onClick={() => handleTriggerEvent(event.id)}
-                                className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors disabled:opacity-50"
-                              >
+                              </Button>
+                              <Button type="button" variant="outline" size="sm" disabled={actionLoading === `event-run-${event.id}` || (event.status === 'analyzing' || event.status === 'running')} onClick={() => handleTriggerEvent(event.id)}>
+                                <Play className="mr-1 h-3 w-3" />
                                 {actionLoading === `event-run-${event.id}` ? 'RUNNING…' : 'RUN NOW'}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={actionLoading === `event-delete-${event.id}`}
-                                onClick={() => handleDeleteEvent(event.id, event.name)}
-                                className="px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-light tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50"
-                              >
+                              </Button>
+                              <Button type="button" variant="destructive" size="sm" disabled={actionLoading === `event-delete-${event.id}`} onClick={() => handleDeleteEvent(event.id, event.name)}>
+                                <Trash2 className="mr-1 h-3 w-3" />
                                 DELETE
-                              </button>
+                              </Button>
                             </div>
                           </div>
                           {editingEventId === event.id && (
@@ -1214,21 +1186,14 @@ export default function SettingsPage() {
                                 </select>
                               </div>
                               <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  disabled={actionLoading === `event-models-${event.id}`}
-                                  onClick={() => handleEventModelUpdate(event.id)}
-                                  className="px-4 py-2 rounded-lg bg-black text-white text-xs font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
-                                >
+                                <Button type="button" size="sm" disabled={actionLoading === `event-models-${event.id}`} onClick={() => handleEventModelUpdate(event.id)}>
+                                  <Save className="mr-1 h-3 w-3" />
                                   {actionLoading === `event-models-${event.id}` ? 'SAVING…' : 'SAVE MODELS'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingEventId(null)}
-                                  className="px-4 py-2 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
-                                >
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setEditingEventId(null)}>
+                                  <X className="mr-1 h-3 w-3" />
                                   CANCEL
-                                </button>
+                                </Button>
                               </div>
                             </div>
                           )}
@@ -1269,13 +1234,10 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={actionLoading === 'alerts'}
-                className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
-              >
-                {actionLoading === 'alerts' ? 'SAVING...' : 'SAVE ALERTS'}
-              </button>
+                  <Button type="submit" disabled={actionLoading === 'alerts'} className="w-full">
+                    <Save className="mr-2 h-4 w-4" />
+                    {actionLoading === 'alerts' ? 'SAVING...' : 'SAVE ALERTS'}
+                  </Button>
             </form>
           </section>
         )}
@@ -1294,13 +1256,10 @@ export default function SettingsPage() {
                   <div className="font-mono text-xs bg-white border border-amber-200 rounded-lg p-3 overflow-auto break-all mb-3">
                     {generatedKey}
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyKey}
-                    className="px-4 py-2 rounded-lg bg-black text-white text-xs font-light tracking-widest hover:bg-black/85 transition-colors"
-                  >
+                  <Button type="button" onClick={handleCopyKey}>
+                    <Copy className="mr-2 h-4 w-4" />
                     COPY KEY
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div className="font-mono text-sm bg-black/5 p-4 rounded-lg overflow-auto mb-4 break-all">
@@ -1311,9 +1270,10 @@ export default function SettingsPage() {
                 Generate a key, then copy the full value immediately. The full key is never stored or shown again.
               </p>
               <div className="flex flex-wrap gap-3">
-                <button type="button" disabled={!projectId || actionLoading === 'apikey'} onClick={handleGenerateKey} className="px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:cursor-not-allowed disabled:opacity-50">
+                <Button type="button" disabled={!projectId || actionLoading === 'apikey'} onClick={handleGenerateKey}>
+                  <Key className="mr-2 h-4 w-4" />
                   {actionLoading === 'apikey' ? 'GENERATING…' : 'GENERATE / REGENERATE KEY'}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -1330,14 +1290,10 @@ export default function SettingsPage() {
                         </div>
                       </div>
                       {!key.revokedAt && (
-                        <button
-                          type="button"
-                          disabled={actionLoading === 'revoke'}
-                          onClick={() => handleRevokeKey(key.id)}
-                          className="flex-shrink-0 px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-light tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50"
-                        >
+                        <Button type="button" variant="destructive" size="sm" disabled={actionLoading === 'revoke'} onClick={() => handleRevokeKey(key.id)} className="flex-shrink-0">
+                          <Trash2 className="mr-1 h-3 w-3" />
                           REVOKE
-                        </button>
+                        </Button>
                       )}
                     </div>
                   ))}
@@ -1363,13 +1319,10 @@ export default function SettingsPage() {
                 <input name="avatarUrl" defaultValue={profile.avatarUrl ?? ''} placeholder="https://..." className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20" />
               </div>
               <div className="text-xs text-black/40">Signed in as {profile.email}</div>
-              <button
-                type="submit"
-                disabled={actionLoading === 'profile'}
-                className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
-              >
+              <Button type="submit" disabled={actionLoading === 'profile'} className="w-full">
+                <User className="mr-2 h-4 w-4" />
                 {actionLoading === 'profile' ? 'SAVING...' : 'SAVE PROFILE'}
-              </button>
+              </Button>
             </form>
 
             <RevealText className="text-2xl font-light tracking-tight mt-12 mb-6">
@@ -1386,13 +1339,10 @@ export default function SettingsPage() {
                 <label className="block text-xs tracking-widest text-black/40 mb-2">NEW PASSWORD</label>
                 <input type="password" name="newPassword" placeholder="At least 8 characters" required minLength={8} className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20" />
               </div>
-              <button
-                type="submit"
-                disabled={actionLoading === 'password'}
-                className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
-              >
+              <Button type="submit" disabled={actionLoading === 'password'} className="w-full">
+                <Lock className="mr-2 h-4 w-4" />
                 {actionLoading === 'password' ? 'UPDATING...' : 'UPDATE PASSWORD'}
-              </button>
+              </Button>
             </form>
 
             <form onSubmit={handleChangeEmail} className="p-6 rounded-xl border border-black/[0.07] bg-white space-y-6 mt-6">
@@ -1401,13 +1351,10 @@ export default function SettingsPage() {
                 <label className="block text-xs tracking-widest text-black/40 mb-2">NEW EMAIL</label>
                 <input type="email" name="email" placeholder="new@email.com" required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20" />
               </div>
-              <button
-                type="submit"
-                disabled={actionLoading === 'email'}
-                className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
-              >
+              <Button type="submit" disabled={actionLoading === 'email'} className="w-full">
+                <Mail className="mr-2 h-4 w-4" />
                 {actionLoading === 'email' ? 'SENDING...' : 'SEND CONFIRMATION'}
-              </button>
+              </Button>
             </form>
 
             <div className="mt-6 p-6 rounded-xl border border-red-300 bg-red-50">
@@ -1415,14 +1362,10 @@ export default function SettingsPage() {
               <p className="text-xs text-red-600/80 mb-4">
                 Permanently delete your account and all associated projects, API keys, and configurations. This cannot be undone.
               </p>
-              <button
-                type="button"
-                disabled={actionLoading === 'delete'}
-                onClick={handleDeleteAccount}
-                className="px-6 py-3 rounded-xl bg-red-600 text-white text-sm font-light tracking-widest hover:bg-red-700 transition-colors disabled:opacity-50"
-              >
+              <Button type="button" variant="destructive" disabled={actionLoading === 'delete'} onClick={handleDeleteAccount}>
+                <Trash2 className="mr-2 h-4 w-4" />
                 {actionLoading === 'delete' ? 'DELETING...' : 'DELETE ACCOUNT'}
-              </button>
+              </Button>
             </div>
           </section>
         )}

@@ -381,6 +381,7 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           prUrl: pr.url,
           prNumber: pr.number,
           branchName,
+          commitTitle: commitMessage,
         });
 
         emitToProject(log.project_id, 'ci:watching', {

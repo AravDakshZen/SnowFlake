@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Copy, Download, Trash2 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 type FeedEvent = { type: string; timestamp?: string; message?: string; [key: string]: unknown }
 
@@ -31,6 +32,13 @@ const TAG_COLORS: Record<string, string> = {
   CI: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
   ERROR: 'bg-red-500/10 text-red-400 border-red-500/20',
   DONE: 'bg-green-500/10 text-green-300 border-green-500/20',
+}
+
+const TAG_DESCRIPTIONS: Record<string, string> = {
+  'PASS 1': 'Error detection & analysis - Scans source code to identify root cause and secondary issues',
+  'PASS 2': 'Quality improvements - Enhances code structure, readability, and applies best practices',
+  'PASS 3': 'Verification pass - Validates all changes are production-ready and error-free',
+  'PASS 4': 'Patch generation - Creates unified diff with confidence scoring',
 }
 
 function formatTime(ts?: string): string {
@@ -339,9 +347,20 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
               {lines.map((line, i) => (
                 <div key={i} className="flex items-start gap-2 py-0.5 anim-fade-up" style={{ animationDelay: `${Math.min(i * 20, 200)}ms` }}>
                   <span className="text-white/25 shrink-0">[{line.timestamp}]</span>
-                  <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 h-5 font-[family-name:var(--font-mono)] ${line.tagColor}`}>
-                    {line.tag}
-                  </Badge>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 h-5 font-[family-name:var(--font-mono)] cursor-help ${line.tagColor}`}>
+                          {line.tag}
+                        </Badge>
+                      </TooltipTrigger>
+                      {TAG_DESCRIPTIONS[line.tag] && (
+                        <TooltipContent side="top" className="max-w-xs">
+                          <p className="text-xs">{TAG_DESCRIPTIONS[line.tag]}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                   <span className="text-emerald-400/80">{line.message}</span>
                 </div>
               ))}
