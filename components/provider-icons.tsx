@@ -105,18 +105,6 @@ export function TogetherIcon({ className }: { className?: string }) {
   )
 }
 
-export function GroqIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <path
-        d="M12 2.5 5 9.9c-2.2 2.5-2.2 6.2 0 8.7 2.2 2.4 5.8 2.4 8 0L12 20l1-.5c2.2-2.5 2.2-6.2 0-8.7L12 2.5Zm-1.4 4.1 4.2 5c1.1 1.3 1.1 3.2 0 4.5-1 1.2-2.7 1.3-3.9.2l-4.3-5c-1.1-1.3-1.1-3.2 0-4.5 1-1.2 2.7-1.3 3.9-.2Z"
-        fill="currentColor"
-      />
-      <circle cx="12" cy="12" r="2" fill="#fff" />
-    </svg>
-  )
-}
-
 export function OpenRouterIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
@@ -128,18 +116,6 @@ export function OpenRouterIcon({ className }: { className?: string }) {
   )
 }
 
-export function DeepInfraIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
-      <rect x="4" y="3.5" width="16" height="17" rx="3" fill="currentColor" />
-      <rect x="7.5" y="6.5" width="4" height="5" rx="1" fill="#fff" fillOpacity="0.9" />
-      <rect x="12.5" y="6.5" width="4" height="5" rx="1" fill="#fff" fillOpacity="0.9" />
-      <rect x="7.5" y="12.5" width="4" height="5" rx="1" fill="#fff" fillOpacity="0.55" />
-      <rect x="12.5" y="12.5" width="4" height="5" rx="1" fill="#fff" fillOpacity="0.55" />
-    </svg>
-  )
-}
-
 // ── Provider → icon + brand color ─────────────────────────────────────────────
 
 const BRAND: Record<string, { name: string; color: string; fg?: string; mark: (c: string) => React.ReactNode }> = {
@@ -147,11 +123,9 @@ const BRAND: Record<string, { name: string; color: string; fg?: string; mark: (c
   anthropic: { name: 'Anthropic', color: '#d97757', mark: (c) => <AnthropicIcon className={c} /> },
   google: { name: 'Google Gemini', color: '#8a5cf6', mark: (c) => <GeminiIcon className={c} /> },
   gemini: { name: 'Google Gemini', color: '#8a5cf6', mark: (c) => <GeminiIcon className={c} /> },
-  deepinfra: { name: 'Deep Infra', color: '#111', mark: (c) => <DeepInfraIcon className={c} /> },
   nvidia: { name: 'NVIDIA NIM', color: '#76b900', mark: (c) => <NvidiaIcon className={c} /> },
   ollama: { name: 'Ollama', color: '#222', mark: (c) => <OllamaIcon className={c} /> },
   together: { name: 'Together AI', color: '#b91c1c', mark: (c) => <TogetherIcon className={c} /> },
-  groq: { name: 'Groq', color: '#f55036', mark: (c) => <GroqIcon className={c} /> },
   openrouter: { name: 'OpenRouter', color: '#6466f1', mark: (c) => <OpenRouterIcon className={c} /> },
 }
 

@@ -42,16 +42,7 @@ function detectFreeModel(modelId: string, baseUrl: string): boolean {
   const hostname = new URL(baseUrl).hostname
 
   if (hostname.includes('cerebras')) return true
-  if (hostname.includes('sambanova')) return true
-  if (hostname.includes('novita')) return true
-  if (hostname.includes('chutes')) return true
-  if (hostname.includes('siliconflow')) return true
   if (hostname.includes('nvidia')) return true
-
-  if (hostname.includes('groq')) {
-    const freeModels = ['llama-3.1-8b-instant', 'llama-3.2-1b-preview', 'llama-3.2-3b-preview', 'gemma2-9b-it']
-    return freeModels.some(f => modelId.includes(f))
-  }
 
   return false
 }
@@ -98,31 +89,6 @@ async function fetchGeminiModels(apiKey: string): Promise<ModelInfo[]> {
   }))
 }
 
-async function fetchGroqModels(apiKey: string): Promise<ModelInfo[]> {
-  const response = await fetch('https://api.groq.com/openai/v1/models', {
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    signal: AbortSignal.timeout(10000),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch models: ${response.status}`)
-  }
-
-  const data = await response.json()
-  const freeModels = ['llama-3.1-8b-instant', 'llama-3.2-1b-preview', 'llama-3.2-3b-preview', 'gemma2-9b-it']
-
-  return data.data.map((m: any) => ({
-    id: m.id,
-    name: m.id,
-    isFree: freeModels.some(f => m.id.includes(f)),
-    contextLength: m.context_window,
-    description: m.description,
-  }))
-}
-
 async function fetchTogetherModels(apiKey: string): Promise<ModelInfo[]> {
   const response = await fetch('https://api.together.xyz/v1/models', {
     headers: {
@@ -140,29 +106,6 @@ async function fetchTogetherModels(apiKey: string): Promise<ModelInfo[]> {
   return (data.data || []).map((m: any) => ({
     id: m.id,
     name: m.display_name || m.id,
-    isFree: m.pricing?.prompt === '0' || m.pricing?.completion === '0',
-    contextLength: m.context_length,
-    description: m.description,
-  }))
-}
-
-async function fetchDeepInfraModels(apiKey: string): Promise<ModelInfo[]> {
-  const response = await fetch('https://api.deepinfra.com/v1/openai/models', {
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    signal: AbortSignal.timeout(10000),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch models: ${response.status}`)
-  }
-
-  const data = await response.json()
-  return (data.data || []).map((m: any) => ({
-    id: m.id,
-    name: m.id,
     isFree: m.pricing?.prompt === '0' || m.pricing?.completion === '0',
     contextLength: m.context_length,
     description: m.description,
@@ -252,14 +195,8 @@ export async function GET(request: NextRequest) {
         case 'gemini':
           models = await fetchGeminiModels(apiKey)
           break
-        case 'groq':
-          models = await fetchGroqModels(apiKey)
-          break
         case 'together':
           models = await fetchTogetherModels(apiKey)
-          break
-        case 'deepinfra':
-          models = await fetchDeepInfraModels(apiKey)
           break
         case 'openrouter':
           models = await fetchOpenRouterModels(apiKey)
@@ -267,11 +204,7 @@ export async function GET(request: NextRequest) {
         case 'nvidia':
           models = await fetchNvidiaModels(apiKey)
           break
-        case 'cerebras':
-        case 'sambanova':
-        case 'novita':
-        case 'chutes':
-        case 'siliconflow': {
+        case 'cerebras': {
           const baseUrl = OPENAI_COMPAT_BASE_URLS[provider]
           if (baseUrl) {
             models = await fetchOpenAICompatibleModels(baseUrl, apiKey)

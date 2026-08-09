@@ -67,26 +67,6 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     requiresKey: true,
     description: 'Gemini models for long context investigations.'
   },
-  deepinfra: {
-    id: 'deepinfra', name: 'Deep Infra', icon: 'DI',
-    models: [
-      'deepseek-ai/DeepSeek-V4-Flash', 'deepseek-ai/DeepSeek-V4-Flash-0731',
-      'deepseek-ai/DeepSeek-V4-Pro', 'deepseek-ai/DeepSeek-V3.2',
-      'deepseek-ai/DeepSeek-R1', 'deepseek-ai/DeepSeek-V3',
-      'zai-org/GLM-5.2', 'zai-org/GLM-5.1', 'zai-org/GLM-5', 'zai-org/GLM-4.7-Flash',
-      'moonshotai/Kimi-K2.7-Code', 'moonshotai/Kimi-K2.6', 'moonshotai/Kimi-K2.5',
-      'Qwen/Qwen3.6-35B-A3B', 'Qwen/Qwen3.5-397B-A17B', 'Qwen/Qwen3-Max', 'Qwen/Qwen3-Max-Thinking',
-      'Qwen/Qwen3-235B-A22B', 'Qwen/Qwen3-Coder-480B-A35B',
-      'nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B', 'nvidia/NVIDIA-Nemotron-3-Super-120B-A12B',
-      'google/gemma-4-31B-it', 'google/gemma-4-26B-A4B-it',
-      'ByteDance/Seed-2.0-pro', 'ByteDance/Seed-2.0-code',
-      'meta-llama/Llama-3.3-70B-Instruct', 'meta-llama/Llama-4-Maverick-17B-128E-Instruct',
-      'Qwen/Qwen2.5-Coder-32B-Instruct', 'Qwen/Qwen2.5-72B-Instruct',
-      'microsoft/phi-4', 'mistralai/Mistral-Small-3.1-24B-Instruct',
-    ],
-    requiresKey: true,
-    description: 'Fast hosted open-source models with generous free tier.'
-  },
   nvidia: {
     id: 'nvidia', name: 'NVIDIA NIM', icon: 'N',
     models: [
@@ -137,21 +117,6 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     requiresKey: true,
     description: 'Fast unified inference across open models.'
   },
-  groq: {
-    id: 'groq', name: 'Groq', icon: 'GQ',
-    models: [
-      'llama-3.3-70b-versatile', 'llama-3.1-8b-instant',
-      'llama-3.1-70b-versatile', 'llama-3.2-1b-preview',
-      'llama-3.2-3b-preview', 'llama-3.2-11b-vision-preview',
-      'llama-3.2-90b-vision-preview', 'gemma2-9b-it',
-      'mixtral-8x7b-32768', 'mixtral-8x8b-32768',
-      'openai/gpt-oss-120b', 'openai/gpt-oss-20b',
-      'groq/compound', 'groq/compound-mini',
-      'minimaxai/minimax-m2.7', 'qwen/qwen3.6-27b',
-    ],
-    requiresKey: true,
-    description: 'Ultra low-latency inference with free tier.'
-  },
   openrouter: {
     id: 'openrouter', name: 'OpenRouter', icon: 'OR',
     models: [
@@ -188,50 +153,6 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
     isFree: true,
     description: 'Ultra-fast inference with free tier — wafer-scale compute.'
   },
-  sambanova: {
-    id: 'sambanova', name: 'SambaNova', icon: 'SN',
-    models: [
-      'Meta-Llama-3.3-70B-Instruct', 'Meta-Llama-3.1-8B-Instruct',
-      'DeepSeek-V3-0324', 'DeepSeek-R1',
-      'QwQ-32B', 'Qwen-2.5-72B-Instruct',
-    ],
-    requiresKey: true,
-    isFree: true,
-    description: 'Free tier inference on SambaNova SN40L chips.'
-  },
-  novita: {
-    id: 'novita', name: 'Novita AI', icon: 'NV',
-    models: [
-      'meta-llama/llama-3.3-70b-instruct', 'meta-llama/llama-3.1-8b-instruct',
-      'deepseek/deepseek-r1', 'deepseek/deepseek-v3-0324',
-      'qwen/qwen-2.5-72b-instruct', 'nousresearch/hermes-3-llama-3.1-405b',
-    ],
-    requiresKey: true,
-    isFree: true,
-    description: 'Free tier with high-quality open model hosting.'
-  },
-  chutes: {
-    id: 'chutes', name: 'Chutes AI', icon: 'CH',
-    models: [
-      'meta-llama/llama-3.3-70b-instruct', 'meta-llama/llama-3.1-8b-instruct',
-      'deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1',
-      'Qwen/Qwen3-235B-A22B',
-    ],
-    requiresKey: true,
-    isFree: true,
-    description: 'Free inference with generous rate limits.'
-  },
-  siliconflow: {
-    id: 'siliconflow', name: 'SiliconFlow', icon: 'SF',
-    models: [
-      'Qwen/Qwen3-235B-A22B', 'Qwen/Qwen3-Coder-480B-A35B',
-      'deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1',
-      'meta-llama/Llama-3.3-70B-Instruct', 'Pro/deepseek-ai/DeepSeek-R1',
-    ],
-    requiresKey: true,
-    isFree: true,
-    description: 'Chinese cloud with generous free tier.'
-  },
   openai_compatible: {
     id: 'openai_compatible', name: 'Custom / OpenAI-Compatible', icon: '⚡',
     models: [],
@@ -244,22 +165,16 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
 // All providers that use an OpenAI-compatible chat completions endpoint.
 // These share the same request/response shape — only the base URL differs.
 export const OPENAI_COMPAT_PROVIDERS = new Set([
-  'deepinfra', 'groq', 'openrouter', 'together', 'nvidia', 'ollama',
-  'cerebras', 'sambanova', 'novita', 'chutes', 'siliconflow', 'openai_compatible',
+  'openrouter', 'together', 'nvidia', 'ollama',
+  'cerebras', 'openai_compatible',
 ])
 
 export const OPENAI_COMPAT_BASE_URLS: Record<string, string> = {
-  deepinfra: 'https://api.deepinfra.com/v1/openai',
-  groq: 'https://api.groq.com/openai/v1',
   openrouter: 'https://openrouter.ai/api/v1',
   together: 'https://api.together.xyz/v1',
   nvidia: 'https://integrate.api.nvidia.com/v1',
   ollama: 'http://localhost:11434/v1',
   cerebras: 'https://api.cerebras.ai/v1',
-  sambanova: 'https://api.sambanova.ai/v1',
-  novita: 'https://api.novita.ai/v3/openai',
-  chutes: 'https://api.chutes.ai/v1',
-  siliconflow: 'https://api.siliconflow.cn/v1',
 }
 
 export async function getLLMProvider(provider: string, apiKey: string, model: string, baseUrl?: string): Promise<LLMProvider> {
@@ -269,16 +184,9 @@ export async function getLLMProvider(provider: string, apiKey: string, model: st
     case 'gemini': case 'google': { const { GeminiProvider } = await import('./providers/gemini'); return new GeminiProvider(apiKey, model) }
     case 'nvidia': { const { NvidiaProvider } = await import('./providers/nvidia'); return new NvidiaProvider(apiKey, model) }
     case 'ollama': { const { OllamaProvider } = await import('./providers/ollama'); return new OllamaProvider(model, baseUrl ?? PROVIDERS.ollama.defaultBaseUrl) }
-    case 'groq': { const { GroqProvider } = await import('./providers/groq'); return new GroqProvider(apiKey, model) }
     case 'openrouter': { const { OpenRouterProvider } = await import('./providers/openrouter'); return new OpenRouterProvider(apiKey, model) }
     case 'together': { const { TogetherProvider } = await import('./providers/together'); return new TogetherProvider(apiKey, model) }
-    case 'deepinfra': { const { DeepInfraProvider } = await import('./providers/deepinfra'); return new DeepInfraProvider(apiKey, model) }
-    // Free providers — share OpenAI-compatible base URL logic
     case 'cerebras': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.cerebras, 'Cerebras') }
-    case 'sambanova': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.sambanova, 'SambaNova') }
-    case 'novita': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.novita, 'Novita AI') }
-    case 'chutes': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.chutes, 'Chutes AI') }
-    case 'siliconflow': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.siliconflow, 'SiliconFlow') }
     case 'openai_compatible': {
       if (!baseUrl) throw new Error('Custom OpenAI-compatible provider requires a Base URL.')
       const { OpenAICompatibleProvider } = await import('./providers/openai-compatible')
