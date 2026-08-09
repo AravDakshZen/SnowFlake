@@ -145,9 +145,11 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
   cerebras: {
     id: 'cerebras', name: 'Cerebras', icon: 'CB',
     models: [
-      'gpt-oss-120b',
-      'gemma-4-31b',
-      'zai-glm-4.7',
+      'llama-3.3-70b', 'llama-3.1-8b', 'llama-3.1-70b',
+      'llama-3.1-8b-instruct', 'llama-3.3-70b-instruct',
+      'qwen-2.5-32b', 'qwen-2.5-72b',
+      'deepseek-r1', 'deepseek-v3',
+      'gemma-2-9b', 'gemma-4-31b',
     ],
     requiresKey: true,
     isFree: true,

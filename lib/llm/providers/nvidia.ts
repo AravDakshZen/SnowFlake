@@ -167,7 +167,13 @@ export class NvidiaProvider implements LLMProvider {
       throw new Error(`NVIDIA returned non-JSON response (${contentType}): ${body.slice(0, 500)}`)
     }
 
-    const data = await response.json()
+    let data: any
+    try {
+      data = await response.json()
+    } catch {
+      const raw = await response.text().catch(() => '')
+      throw new Error(`NVIDIA returned invalid JSON: ${raw.slice(0, 500)}`)
+    }
     const content = data.choices?.[0]?.message?.content || ''
     return parseAnalysisText(content)
   }
