@@ -120,7 +120,50 @@ function mapEventToLines(event: FeedEvent): TerminalLine[] {
         { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `❄️ Snowflake investigation #${String(d.investigationId ?? '').slice(0, 8)} closed` },
       ]
     default:
-      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: event.message || labels[event.type] || event.type }]
+      return mapRawEvent(event)
+  }
+}
+
+function mapRawEvent(event: FeedEvent): TerminalLine[] {
+  const t = formatTime(event.timestamp)
+  const d = event as Record<string, unknown>
+  const msg = (d.message as string) || ''
+
+  switch (event.type) {
+    case 'connected':
+      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: 'Live stream connected' }]
+    case 'event:started':
+      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: msg || `Event "${d.name ?? ''}" started analyzing ${d.repo ?? ''}` }]
+    case 'event:progress': {
+      const stage = String(d.stage ?? '')
+      const provider = String(d.provider ?? '')
+      const model = String(d.model ?? '')
+      if (stage === 'fetching_commit') {
+        return [{ timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: msg || `Fetching commit ${String(d.commitSha ?? '').substring(0, 7)}` }]
+      }
+      if (stage === 'analyzing' && provider) {
+        return [{ timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: msg || `Analyzing with ${provider}/${model}` }]
+      }
+      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: msg || `Progress: ${stage || 'unknown'}` }]
+    }
+    case 'llm:fallback':
+      return [{ timestamp: t, tag: 'WARN', tagColor: TAG_COLORS.WARN, message: msg || `Falling back from ${d.fromProvider ?? ''} to ${d.provider ?? ''}` }]
+    case 'event:completed':
+      return [
+        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: msg || `Event "${d.name ?? ''}" completed` },
+        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `Root cause: ${String(d.rootCause ?? d.message ?? '').substring(0, 80)}` },
+      ]
+    case 'event:failed':
+      return [{ timestamp: t, tag: 'ERROR', tagColor: TAG_COLORS.ERROR, message: msg || `Event failed: ${String(d.error ?? '').substring(0, 100)}` }]
+    case 'investigation:progress': {
+      const stage = String(d.stage ?? '')
+      if (stage === 'analyzing') {
+        return [{ timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: 'LLM analyzing stack trace and source files...' }]
+      }
+      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: msg || `Investigation progress: ${stage}` }]
+    }
+    default:
+      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: msg || labels[event.type] || event.type }]
   }
 }
 

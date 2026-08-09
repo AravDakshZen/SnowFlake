@@ -116,6 +116,16 @@ export function OpenRouterIcon({ className }: { className?: string }) {
   )
 }
 
+export function CerebrasIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden="true">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="currentColor"/>
+      <path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z" fill="currentColor"/>
+      <circle cx="12" cy="12" r="2" fill="currentColor"/>
+    </svg>
+  )
+}
+
 // ── Provider → icon + brand color ─────────────────────────────────────────────
 
 const BRAND: Record<string, { name: string; color: string; fg?: string; mark: (c: string) => React.ReactNode }> = {
@@ -127,6 +137,7 @@ const BRAND: Record<string, { name: string; color: string; fg?: string; mark: (c
   ollama: { name: 'Ollama', color: '#222', mark: (c) => <OllamaIcon className={c} /> },
   together: { name: 'Together AI', color: '#b91c1c', mark: (c) => <TogetherIcon className={c} /> },
   openrouter: { name: 'OpenRouter', color: '#6466f1', mark: (c) => <OpenRouterIcon className={c} /> },
+  cerebras: { name: 'Cerebras', color: '#f97316', mark: (c) => <CerebrasIcon className={c} /> },
 }
 
 export function getProviderBrand(providerId: string) {
