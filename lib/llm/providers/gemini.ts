@@ -1,8 +1,9 @@
-import { generateObject, embed } from 'ai';
+import { generateObject, embed, generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { z } from 'zod';
 import type { LLMProvider, AnalysisResult } from '../index';
 import { withTimeout } from '../parse';
+import { ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt, classifyError } from '../prompt';
 
 const analysisSchema = z.object({
   rootCause: z.string(),
@@ -29,29 +30,49 @@ export class GeminiProvider implements LLMProvider {
     sourceFiles: Record<string, string>,
     previousAttempts?: string[]
   ): Promise<AnalysisResult> {
-    const filesContext = Object.entries(sourceFiles)
-      .map(([path, content]) => `\n// File: ${path}\n${content}`)
-      .join('\n\n');
+    const userPrompt = buildAnalysisPrompt({ stackTrace, sourceFiles, previousAttempts });
 
-    const previousContext = previousAttempts
-      ? `Previous fix attempts:\n${previousAttempts.join('\n\n')}\n\n`
-      : '';
+    const run = async () => {
+      const result = await withTimeout(
+        generateObject({
+          model: this.client(this.model),
+          system: ANALYSIS_SYSTEM_PROMPT,
+          prompt: userPrompt,
+          schema: analysisSchema,
+        })
+      );
+      return result.object;
+    };
 
-    const systemPrompt = `You are an expert backend engineer. Analyze the following stack trace and source files.
-Find EVERY bug across all provided files. Identify each root cause with its file and line number, and generate a complete corrected version of every affected file. The patchDiff must contain a hunk for every bug — do not stop at one. Return ONLY valid JSON.`;
+    try {
+      return await run();
+    } catch (error) {
+      const classified = classifyError(error);
 
-    const userPrompt = `${previousContext}Stack trace:\n${stackTrace}\n\nSource files:\n${filesContext}`;
+      if (classified.type === 'auth') {
+        throw new Error(
+          `Gemini API key is invalid or expired. ` +
+          `Update your Google AI API key in Settings > LLM Providers. ` +
+          `Get a free key at https://aistudio.google.com/apikey`
+        );
+      }
 
-    const result = await withTimeout(
-      generateObject({
-        model: this.client(this.model),
-        system: systemPrompt,
-        prompt: userPrompt,
-        schema: analysisSchema,
-      })
-    );
+      if (classified.type === 'rate_limit') {
+        throw new Error(
+          `Gemini rate limit exceeded for ${this.model}. ` +
+          `Wait a moment and try again, or switch to another provider.`
+        );
+      }
 
-    return result.object;
+      if (classified.type === 'model_not_found') {
+        throw new Error(
+          `Gemini model "${this.model}" not found. ` +
+          `It may have been renamed or removed. Try: gemini-2.5-flash, gemini-2.5-pro, or gemini-2.0-flash.`
+        );
+      }
+
+      throw new Error(`Gemini analysis failed: ${classified.message}`);
+    }
   }
 
   async embed(text: string): Promise<number[]> {
@@ -59,13 +80,18 @@ Find EVERY bug across all provided files. Identify each root cause with its file
       model: this.client.embedding('text-embedding-004'),
       value: text,
     });
-
     return embedding.embedding;
   }
 
   async isAvailable(): Promise<boolean> {
     try {
-      await this.embed('test');
+      await withTimeout(
+        generateText({
+          model: this.client(this.model),
+          prompt: 'Reply with OK',
+          maxTokens: 5,
+        })
+      );
       return true;
     } catch {
       return false;

@@ -2,6 +2,7 @@ import { generateText } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import type { LLMProvider, AnalysisResult } from '../index'
 import { parseAnalysisText, withTimeout, LLM_TIMEOUT_MS } from '../parse'
+import { ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt, classifyError } from '../prompt'
 
 export class DeepInfraProvider implements LLMProvider {
   private client: any
@@ -39,20 +40,13 @@ export class DeepInfraProvider implements LLMProvider {
     sourceFiles: Record<string, string>,
     previousAttempts?: string[]
   ): Promise<AnalysisResult> {
-    const fileContext = Object.entries(sourceFiles)
-      .map(([path, content]) => `File: ${path}\n${content}`)
-      .join('\n\n')
-
-    const previousContext = previousAttempts?.length
-      ? `\n\nPrevious fix attempts failed. Learn from these:\n${previousAttempts.join('\n\n')}`
-      : ''
+    const userPrompt = buildAnalysisPrompt({ stackTrace, sourceFiles, previousAttempts })
 
     const run = async () => {
       const text = await generateText({
         model: this.client.chat(this.model),
-        system: `You are a senior backend engineer. Given a stack trace and source files, find EVERY bug in the source files and include every fix in patchDiff (multiple hunks allowed). Respond with JSON only:
-{rootCause, affectedFile, affectedLine, suggestedFix, patchDiff, confidence, explanation, fixStrategy}`,
-        prompt: `Stack Trace:\n${stackTrace}\n\nSource Files:\n${fileContext}${previousContext}`,
+        system: ANALYSIS_SYSTEM_PROMPT,
+        prompt: userPrompt,
         temperature: 0.2,
       })
 
@@ -62,8 +56,24 @@ export class DeepInfraProvider implements LLMProvider {
     try {
       return await withTimeout(run())
     } catch (error) {
+      const classified = classifyError(error)
+
+      if (classified.type === 'auth') {
+        throw new Error(
+          `DeepInfra API key is invalid or expired. ` +
+          `Update your key in Settings > LLM Providers.`
+        )
+      }
+
+      if (classified.type === 'rate_limit') {
+        throw new Error(
+          `DeepInfra rate limit exceeded for ${this.model}. ` +
+          `Wait and retry, or switch to another provider.`
+        )
+      }
+
       throw new Error(
-        `Failed to get DeepInfra analysis: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to get DeepInfra analysis: ${classified.message}`
       )
     }
   }

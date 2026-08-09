@@ -3,6 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import type { LLMProvider, AnalysisResult } from '../index';
 import { withTimeout } from '../parse';
+import { ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt, classifyError } from '../prompt';
 
 const analysisSchema = z.object({
   rootCause: z.string(),
@@ -34,29 +35,48 @@ export class OpenRouterProvider implements LLMProvider {
     sourceFiles: Record<string, string>,
     previousAttempts?: string[]
   ): Promise<AnalysisResult> {
-    const filesContext = Object.entries(sourceFiles)
-      .map(([path, content]) => `\n// File: ${path}\n${content}`)
-      .join('\n\n');
+    const userPrompt = buildAnalysisPrompt({ stackTrace, sourceFiles, previousAttempts });
 
-    const previousContext = previousAttempts
-      ? `Previous fix attempts:\n${previousAttempts.join('\n\n')}\n\n`
-      : '';
+    const run = async () => {
+      const result = await withTimeout(
+        generateObject({
+          model: this.client(this.model),
+          system: ANALYSIS_SYSTEM_PROMPT,
+          prompt: userPrompt,
+          schema: analysisSchema,
+        })
+      );
+      return result.object;
+    };
 
-    const systemPrompt = `You are an expert backend engineer. Analyze the following stack trace and source files.
-Find EVERY bug across all provided files. Identify each root cause with its file and line number, and generate a complete corrected version of every affected file. The patchDiff must contain a hunk for every bug — do not stop at one. Return ONLY valid JSON.`;
+    try {
+      return await run();
+    } catch (error) {
+      const classified = classifyError(error);
 
-    const userPrompt = `${previousContext}Stack trace:\n${stackTrace}\n\nSource files:\n${filesContext}`;
+      if (classified.type === 'auth') {
+        throw new Error(
+          `OpenRouter API key is invalid or expired. ` +
+          `Update your key in Settings > LLM Providers.`
+        );
+      }
 
-    const result = await withTimeout(
-      generateObject({
-        model: this.client(this.model),
-        system: systemPrompt,
-        prompt: userPrompt,
-        schema: analysisSchema,
-      })
-    );
+      if (classified.type === 'rate_limit') {
+        throw new Error(
+          `OpenRouter rate limit exceeded for ${this.model}. ` +
+          `Wait a moment and try again, or switch to another provider.`
+        );
+      }
 
-    return result.object;
+      if (classified.type === 'model_not_found') {
+        throw new Error(
+          `OpenRouter model "${this.model}" not found. ` +
+          `Check available models at https://openrouter.ai/models.`
+        );
+      }
+
+      throw new Error(`OpenRouter analysis failed: ${classified.message}`);
+    }
   }
 
   async embed(text: string): Promise<number[]> {

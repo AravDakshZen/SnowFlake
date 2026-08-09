@@ -1,5 +1,6 @@
 import type { LLMProvider, AnalysisResult } from '../index'
 import { parseAnalysisText, withTimeout, LLM_TIMEOUT_MS } from '../parse'
+import { ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt } from '../prompt'
 
 // Model-specific context window sizes (tokens). Used to auto-cap max_tokens.
 const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
@@ -136,6 +137,8 @@ export class NvidiaProvider implements LLMProvider {
       ? getModelMaxTokens(this.model, baseMaxTokens)
       : Math.floor(getModelMaxTokens(this.model, baseMaxTokens) * 0.5)
 
+    const userPrompt = buildAnalysisPrompt({ stackTrace, sourceFiles: sourceCode })
+
     const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -145,12 +148,10 @@ export class NvidiaProvider implements LLMProvider {
       body: JSON.stringify({
         model: this.model,
         messages: [
-          {
-            role: 'user',
-            content: `Analyze this error:\n${stackTrace}\n\nSource:\n${JSON.stringify(sourceCode)}\n\nFind EVERY bug in the source and include every fix in patchDiff (multiple hunks allowed). Respond with JSON only: {rootCause, affectedFile, affectedLine, suggestedFix, patchDiff, confidence, explanation, fixStrategy}`,
-          },
+          { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
         ],
-        temperature: 0.3,
+        temperature: 0.2,
         max_tokens: maxTokens,
       }),
       signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
@@ -158,7 +159,7 @@ export class NvidiaProvider implements LLMProvider {
 
     if (!response.ok) {
       const body = await response.text().catch(() => '')
-      throw new Error(`NVIDIA returned ${response.status}: ${body.slice(0, 200)}`)
+      throw new Error(`NVIDIA returned ${response.status}: ${body.slice(0, 300)}`)
     }
 
     const data = await response.json()

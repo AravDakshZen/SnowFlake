@@ -180,8 +180,9 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
   cerebras: {
     id: 'cerebras', name: 'Cerebras', icon: 'CB',
     models: [
-      'llama-3.3-70b', 'llama-3.1-8b',
-      'llama-3.1-70b', 'llama-3.2-3b',
+      'gpt-oss-120b',
+      'gemma-4-31b',
+      'zai-glm-4.7',
     ],
     requiresKey: true,
     isFree: true,
@@ -273,15 +274,15 @@ export async function getLLMProvider(provider: string, apiKey: string, model: st
     case 'together': { const { TogetherProvider } = await import('./providers/together'); return new TogetherProvider(apiKey, model) }
     case 'deepinfra': { const { DeepInfraProvider } = await import('./providers/deepinfra'); return new DeepInfraProvider(apiKey, model) }
     // Free providers — share OpenAI-compatible base URL logic
-    case 'cerebras': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.cerebras) }
-    case 'sambanova': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.sambanova) }
-    case 'novita': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.novita) }
-    case 'chutes': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.chutes) }
-    case 'siliconflow': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.siliconflow) }
+    case 'cerebras': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.cerebras, 'Cerebras') }
+    case 'sambanova': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.sambanova, 'SambaNova') }
+    case 'novita': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.novita, 'Novita AI') }
+    case 'chutes': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.chutes, 'Chutes AI') }
+    case 'siliconflow': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.siliconflow, 'SiliconFlow') }
     case 'openai_compatible': {
       if (!baseUrl) throw new Error('Custom OpenAI-compatible provider requires a Base URL.')
       const { OpenAICompatibleProvider } = await import('./providers/openai-compatible')
-      return new OpenAICompatibleProvider(apiKey, model, baseUrl)
+      return new OpenAICompatibleProvider(apiKey, model, baseUrl, 'Custom')
     }
     default: throw new Error(`Unsupported LLM provider: ${provider}`)
   }

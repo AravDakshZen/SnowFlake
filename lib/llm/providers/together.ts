@@ -2,6 +2,7 @@ import { generateText, embed } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import type { LLMProvider, AnalysisResult } from '../index'
 import { parseAnalysisText, withTimeout, LLM_TIMEOUT_MS } from '../parse'
+import { ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt, classifyError } from '../prompt'
 
 export class TogetherProvider implements LLMProvider {
   private apiKey: string
@@ -22,40 +23,13 @@ export class TogetherProvider implements LLMProvider {
     sourceFiles: Record<string, string>,
     previousAttempts?: string[]
   ): Promise<AnalysisResult> {
-    const fileContext = Object.entries(sourceFiles)
-      .map(([path, content]) => `File: ${path}\n${content}`)
-      .join('\n\n')
-
-    let systemPrompt = `You are a senior backend engineer performing automated root cause analysis.
-Given a stack trace and the relevant source files, identify EVERY bug across all provided files. For each bug:
-1. The exact root cause (one sentence)
-2. The affected file path and line number
-3. A complete corrected version of the affected file
-4. A unified diff patch containing a hunk for EVERY bug — do not stop at one
-5. Your confidence score (0-100) and a plain-english explanation of WHY that score
-6. The fix strategy type (one_liner|refactor|dependency_update|config_change)
-Respond ONLY with valid JSON matching this schema:
-{
-  "rootCause": "string",
-  "affectedFile": "string",
-  "affectedLine": number,
-  "suggestedFix": "string",
-  "patchDiff": "string",
-  "confidence": number,
-  "explanation": "string",
-  "confidenceReasoning": "string",
-  "fixStrategy": "string"
-}`
-
-    if (previousAttempts && previousAttempts.length > 0) {
-      systemPrompt += `\n\nPrevious fix attempts failed. Learn from these and provide a corrected fix.`
-    }
+    const userPrompt = buildAnalysisPrompt({ stackTrace, sourceFiles, previousAttempts })
 
     const run = async () => {
       const text = await generateText({
         model: this.client.chat(this.model),
-        system: systemPrompt,
-        prompt: `Stack Trace:\n${stackTrace}\n\nSource Files:\n${fileContext}`,
+        system: ANALYSIS_SYSTEM_PROMPT,
+        prompt: userPrompt,
         temperature: 0.2,
       })
 
@@ -65,8 +39,24 @@ Respond ONLY with valid JSON matching this schema:
     try {
       return await withTimeout(run())
     } catch (error) {
+      const classified = classifyError(error)
+
+      if (classified.type === 'auth') {
+        throw new Error(
+          `Together API key is invalid or expired. ` +
+          `Update your key in Settings > LLM Providers.`
+        )
+      }
+
+      if (classified.type === 'rate_limit') {
+        throw new Error(
+          `Together rate limit exceeded for ${this.model}. ` +
+          `Wait and retry, or switch to another provider.`
+        )
+      }
+
       throw new Error(
-        `Failed to parse LLM response: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Failed to get Together analysis: ${classified.message}`
       )
     }
   }
