@@ -98,3 +98,21 @@ export function generateFallbackCommitMessage(context: string): string {
 
   return `${prefix}: fix issues in ${affectedItem}`
 }
+
+export function generateMultiFileCommitTitle(filePaths: string[], rootCause: string): string {
+  const count = filePaths.length
+  const shortCause = rootCause.substring(0, 50).replace(/\n/g, ' ').trim()
+
+  if (count === 1) {
+    const filename = filePaths[0].split('/').pop() || filePaths[0]
+    return `fix: ${shortCause} in ${filename}`
+  }
+
+  if (count === 2) {
+    const file1 = filePaths[0].split('/').pop() || filePaths[0]
+    const file2 = filePaths[1].split('/').pop() || filePaths[1]
+    return `fix: ${shortCause} in ${file1} and ${file2}`
+  }
+
+  return `fix: ${count} issues across ${count} files`
+}

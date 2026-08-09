@@ -5,6 +5,11 @@ export interface GitHubFile {
   content: string;
 }
 
+export interface GitHubFileWithSHA extends GitHubFile {
+  sha: string;
+  encoding: string;
+}
+
 export interface GitHubCommitInfo {
   sha: string;
   message: string;
@@ -57,6 +62,35 @@ export class GitHubClient {
       }
       const content = Buffer.from(response.data.content, 'base64').toString('utf-8')
       return { path, content }
+    } catch (error) {
+      console.error(`[v0] Failed to fetch ${path}:`, error);
+      this.rethrowAuth(error);
+    }
+  }
+
+  async getFileWithSHA(path: string, ref: string = 'main'): Promise<GitHubFileWithSHA> {
+    try {
+      const response = await this.octokit.rest.repos.getContent({
+        owner: this.owner,
+        repo: this.repo,
+        path,
+        ref,
+      });
+
+      if (Array.isArray(response.data)) {
+        throw new Error('Path is a directory');
+      }
+
+      if (response.data.type !== 'file' || typeof response.data.content !== 'string') {
+        throw new Error('Path is not a readable file')
+      }
+      const content = Buffer.from(response.data.content, 'base64').toString('utf-8')
+      return {
+        path,
+        content,
+        sha: response.data.sha,
+        encoding: response.data.encoding || 'base64',
+      }
     } catch (error) {
       console.error(`[v0] Failed to fetch ${path}:`, error);
       this.rethrowAuth(error);

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { GitPullRequest, ChevronDown, FileCode, Cpu, Clock, ExternalLink, Download } from 'lucide-react'
+import { GitPullRequest, ChevronDown, FileCode, Cpu, Clock, ExternalLink, Download, Bot } from 'lucide-react'
+import type { ModelsUsed, PassModelInfo } from '@/types/investigation'
 
 function formatRelativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -101,10 +102,102 @@ function PassCircles({ passes }: { passes: number }) {
   )
 }
 
+function ETACountdown({ createdAt, status }: { createdAt: string; status: string }) {
+  const [remaining, setRemaining] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (status !== 'in_progress') {
+      setRemaining(null)
+      return
+    }
+
+    const startTime = new Date(createdAt).getTime()
+    const estimatedDuration = 8 * 60 * 1000
+    const estimatedEnd = startTime + estimatedDuration
+
+    const updateRemaining = () => {
+      const now = Date.now()
+      const diff = estimatedEnd - now
+      setRemaining(diff > 0 ? diff : 0)
+    }
+
+    updateRemaining()
+    const interval = setInterval(updateRemaining, 30000)
+
+    return () => clearInterval(interval)
+  }, [createdAt, status])
+
+  if (status !== 'in_progress' || remaining === null) return null
+
+  const minutes = Math.floor(remaining / 60000)
+  const seconds = Math.floor((remaining % 60000) / 1000)
+
+  return (
+    <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-600 bg-amber-50">
+      ~{minutes}:{seconds.toString().padStart(2, '0')} min left
+    </Badge>
+  )
+}
+
+function ModelsUsedPanel({ modelsUsed }: { modelsUsed?: ModelsUsed }) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (!modelsUsed) return null
+
+  const passes = [
+    { key: 'pass1', label: 'Pass 1 — Detection', data: modelsUsed.pass1 },
+    { key: 'pass2', label: 'Pass 2 — Quality', data: modelsUsed.pass2 },
+    { key: 'pass3', label: 'Pass 3 — Verification', data: modelsUsed.pass3 },
+    { key: 'pass4', label: 'Pass 4 — Output', data: modelsUsed.pass4 },
+  ].filter(p => p.data)
+
+  if (passes.length === 0) return null
+
+  const totalTokens = passes.reduce((sum, p) => sum + (p.data?.tokensUsed || 0), 0)
+  const totalLatency = passes.reduce((sum, p) => sum + (p.data?.latencyMs || 0), 0)
+
+  return (
+    <Collapsible open={expanded} onOpenChange={setExpanded}>
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" size="sm" className="text-xs text-black/50 hover:text-black/70 h-6 px-2">
+          <Bot className="h-3 w-3 mr-1" />
+          {passes[0].data?.provider} / {passes[0].data?.model?.split('/').pop()?.substring(0, 20)}
+          <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <Card className="mt-2">
+          <CardContent className="p-3 space-y-2">
+            {passes.map(({ key, label, data }) => (
+              <div key={key} className="flex items-center justify-between text-xs">
+                <span className="text-black/60">{label}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono">{data?.provider}/{data?.model?.split('/').pop()}</span>
+                  <span className="text-black/40">{data?.tokensUsed} tokens</span>
+                  <span className="text-black/40">{data?.latencyMs}ms</span>
+                </div>
+              </div>
+            ))}
+            <Separator className="my-2" />
+            <div className="flex items-center justify-between text-xs font-medium">
+              <span>Total</span>
+              <div className="flex items-center gap-2">
+                <span>{totalTokens} tokens</span>
+                <span>{totalLatency}ms</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
 function InvestigationCard({ inv, index }: { inv: any; index: number }) {
   const [expanded, setExpanded] = useState(false)
   const severity = getSeverity(inv.status_code)
   const stackLines = inv.root_cause ? inv.root_cause.split('\n').slice(0, 12) : []
+  const modelsUsed: ModelsUsed | undefined = inv.models_used ? JSON.parse(inv.models_used) : undefined
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -119,6 +212,7 @@ function InvestigationCard({ inv, index }: { inv: any; index: number }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={severity.color}>{severity.label}</Badge>
                 <Badge variant="outline" className={getStatusColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
+                <ETACountdown createdAt={inv.created_at} status={inv.status} />
                 <span className="text-xs text-black/40 font-[family-name:var(--font-mono)]">{String(inv.id).slice(0, 8)}</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-black/40 shrink-0">
@@ -176,6 +270,7 @@ function InvestigationCard({ inv, index }: { inv: any; index: number }) {
                   <span>Passes:</span>
                   <PassCircles passes={inv.status === 'completed' ? 4 : inv.status === 'in_progress' ? 2 : 0} />
                 </div>
+                <ModelsUsedPanel modelsUsed={modelsUsed} />
               </div>
               <div className="flex items-center gap-3">
                 <ConfidenceArc confidence={inv.confidence || 0} />

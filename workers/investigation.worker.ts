@@ -9,7 +9,12 @@ import type { InvestigationJob } from '@/lib/queue';
 import { emitToProject } from '@/lib/socket';
 import { logAudit } from '@/lib/audit';
 import { resolveAppUrl } from '@/lib/config';
-import { generatePRBody, type Issue } from '@/lib/github/prBody';
+import { generatePRBody, type FilePRInput } from '@/lib/github/prBody';
+import { generateMultiFileCommitTitle } from '@/lib/github/commitMessage';
+import { cleanFiles, type CleanerResult } from '@/lib/engine/cleaner';
+import { getSelectedCategories, getCategoryById } from '@/types/event';
+import type { FileCleanResult, ModelsUsed } from '@/types/investigation';
+import { createPatch } from 'diff';
 
 const APP_URL = resolveAppUrl();
 
@@ -200,6 +205,12 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           explanation = ${analysis.explanation},
           status = 'completed',
           attempt = ${(job.attempt || 1)},
+          models_used = ${JSON.stringify({
+            pass1: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
+            pass2: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
+            pass3: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
+            pass4: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 }
+          })},
           resolved_at = NOW()
         WHERE id = ${investigationId}
       `;
@@ -220,7 +231,8 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           fix_strategy,
           explanation,
           status,
-          attempt
+          attempt,
+          models_used
         )
         VALUES (
           ${log.project_id},
@@ -237,7 +249,13 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           ${analysis.fixStrategy},
           ${analysis.explanation},
           'completed',
-          ${(job.attempt || 1)}
+          ${(job.attempt || 1)},
+          ${JSON.stringify({
+            pass1: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
+            pass2: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
+            pass3: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
+            pass4: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 }
+          })}
         )
         RETURNING id
       `;
@@ -323,24 +341,29 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
 
         const prBody = generatePRBody({
           investigationId,
-          filename: analysis.affectedFile,
           rootCause: analysis.rootCause,
-          affectedFile: analysis.affectedFile,
-          affectedLine: analysis.affectedLine,
           confidence: analysis.confidence,
           fixStrategy: analysis.fixStrategy,
           explanation: analysis.explanation,
-          issues: [
-            {
+          fileResults: [{
+            filePath: analysis.affectedFile,
+            patchDiff: analysis.patchDiff,
+            issuesFixed: 1,
+            issueReport: {
+              totalFound: 1,
+              totalFixed: 1,
+              byCategory: { critical_errors: 1 }
+            },
+            issues: [{
               severity: 'critical',
-              category: 'crash',
+              category: 'critical_errors',
               line: analysis.affectedLine,
               description: analysis.rootCause.substring(0, 100),
               before: analysis.patchDiff.split('\n').filter(l => l.startsWith('-')).slice(0, 5).join('\n'),
               after: analysis.patchDiff.split('\n').filter(l => l.startsWith('+')).slice(0, 5).join('\n'),
               reason: analysis.explanation,
-            },
-          ],
+            }],
+          }],
           totalIssuesFixed: 1,
           passesRun: 4,
           provider: config.provider,
@@ -851,24 +874,29 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
 
         const prBody = generatePRBody({
           investigationId,
-          filename: analysis.affectedFile,
           rootCause: analysis.rootCause,
-          affectedFile: analysis.affectedFile,
-          affectedLine: analysis.affectedLine,
           confidence: analysis.confidence,
           fixStrategy: analysis.fixStrategy,
           explanation: analysis.explanation,
-          issues: [
-            {
+          fileResults: [{
+            filePath: analysis.affectedFile,
+            patchDiff: analysis.patchDiff,
+            issuesFixed: 1,
+            issueReport: {
+              totalFound: 1,
+              totalFixed: 1,
+              byCategory: { critical_errors: 1 }
+            },
+            issues: [{
               severity: 'critical',
-              category: 'crash',
+              category: 'critical_errors',
               line: analysis.affectedLine,
               description: analysis.rootCause.substring(0, 100),
               before: analysis.patchDiff.split('\n').filter(l => l.startsWith('-')).slice(0, 5).join('\n'),
               after: analysis.patchDiff.split('\n').filter(l => l.startsWith('+')).slice(0, 5).join('\n'),
               reason: analysis.explanation,
-            },
-          ],
+            }],
+          }],
           totalIssuesFixed: 1,
           passesRun: 4,
           provider: usedConfig?.provider || event.fix_provider,

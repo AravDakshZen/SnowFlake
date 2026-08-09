@@ -33,6 +33,11 @@ const TAG_COLORS: Record<string, string> = {
   ERROR: 'bg-red-500/10 text-red-400 border-red-500/20',
   DONE: 'bg-green-500/10 text-green-300 border-green-500/20',
   EVENT: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+  CRITICAL: 'bg-red-500/10 text-red-400 border-red-500/20',
+  SECURITY: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+  LOGIC: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+  QUALITY: 'bg-green-500/10 text-green-400 border-green-500/20',
+  STYLE: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
 }
 
 const TAG_DESCRIPTIONS: Record<string, string> = {
@@ -71,16 +76,15 @@ function mapEventToLines(event: FeedEvent): TerminalLine[] {
         { timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: `Fetching source file: ${d.filename ?? ''}` },
         { timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: `File loaded — ${d.linesCount ?? '?'} lines of ${d.language ?? ''} code` },
         { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: 'Starting error detection pass...' },
-        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Sending to ${d.model ?? 'LLM'} for analysis...` },
+        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Using ${d.provider ?? 'LLM'} / ${d.model ?? 'model'} for detection pass` },
         { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Primary error located — line ${d.line ?? '?'}: ${d.shortDescription ?? ''}` },
         { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: 'Scanning entire file for secondary issues...' },
         { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Found ${d.count ?? '?'} additional issues to clean` },
       ]
-    case 'engine:issue': {
-      const sev = String(d.severity ?? 'INFO').toUpperCase()
-      const tag = sev === 'CRITICAL' || sev === 'HIGH' ? 'FIX' : 'WARN'
-      return [{ timestamp: t, tag, tagColor: TAG_COLORS[tag], message: `[${sev}] ${d.description ?? ''} at line ${d.line ?? '?'} — ${tag === 'FIX' ? 'fixing' : 'cleaning'}` }]
-    }
+    case 'engine:pass1:complete':
+      return [
+        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Analysis complete — ${d.tokensUsed ?? '?'} tokens · ${d.latencyMs ?? '?'}ms` },
+      ]
     case 'engine:pass2':
       return [
         { timestamp: t, tag: 'PASS 2', tagColor: TAG_COLORS['PASS 2'], message: 'Error fixes complete — starting quality pass' },
@@ -98,6 +102,25 @@ function mapEventToLines(event: FeedEvent): TerminalLine[] {
         { timestamp: t, tag: 'PASS 4', tagColor: TAG_COLORS['PASS 4'], message: 'Generating unified diff patch...' },
         { timestamp: t, tag: 'PASS 4', tagColor: TAG_COLORS['PASS 4'], message: `${d.linesChanged ?? '?'} lines changed across ${d.filesModified ?? '?'} files` },
         { timestamp: t, tag: 'PATCH', tagColor: TAG_COLORS.PATCH, message: `Patch ready — confidence score: ${d.confidence ?? '?'}%` },
+      ]
+    case 'engine:category:start':
+      return [
+        { timestamp: t, tag: 'SCAN', tagColor: TAG_COLORS.SCAN, message: `━━━ Pass: ${d.categoryLabel ?? ''} ━━━━━━━━━━━` },
+        { timestamp: t, tag: String(d.terminalTag ?? 'SCAN'), tagColor: TAG_COLORS[String(d.terminalTag ?? 'SCAN')] || TAG_COLORS.SCAN, message: `Scanning for ${d.description ?? ''}...` },
+      ]
+    case 'engine:category:complete':
+      return [
+        { timestamp: t, tag: String(d.terminalTag ?? 'SCAN'), tagColor: TAG_COLORS[String(d.terminalTag ?? 'SCAN')] || TAG_COLORS.SCAN, message: `${d.count ?? '?'} ${d.categoryLabel ?? ''} issues resolved ✓` },
+      ]
+    case 'engine:issue': {
+      const sev = String(d.severity ?? 'INFO').toUpperCase()
+      const tag = sev === 'CRITICAL' || sev === 'HIGH' ? 'FIX' : 'WARN'
+      return [{ timestamp: t, tag, tagColor: TAG_COLORS[tag], message: `[${sev}] ${d.description ?? ''} at line ${d.line ?? '?'} — ${tag === 'FIX' ? 'fixing' : 'cleaning'}` }]
+    }
+    case 'engine:model:used':
+      return [
+        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Using ${d.provider ?? ''} / ${d.model ?? ''} for ${d.pass ?? 'analysis'} pass` },
+        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Analysis complete — ${d.tokensUsed ?? '?'} tokens · ${d.latencyMs ?? '?'}ms` },
       ]
     case 'pr:created':
       return [

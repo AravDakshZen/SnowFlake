@@ -122,6 +122,10 @@ model Investigation {
   attempt               Int             @default(1)
   ciStatus              String?
   ciFailureLog          String?
+  modelsUsed            Json?           // { pass1: { provider, model, tokensUsed, latencyMs }, pass2: ..., pass3: ..., pass4: ... }
+  fileResults           Json?           // FileCleanResult[] for multi-file PRs
+  categoryIds           String[]        @default([])  // Issue categories selected for this investigation
+  totalEstimatedMinutes Int?            // Estimated analysis time
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 

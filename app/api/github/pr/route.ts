@@ -4,7 +4,23 @@ import { getSession } from '@/lib/auth';
 import { decryptValue } from '@/lib/encryption';
 import { GitHubClient } from '@/lib/github';
 import { logAudit } from '@/lib/audit';
-import { applyUnifiedPatch, looksLikeCode, extractPatchChanges } from '@/lib/apply-patch';
+import { createPatch } from 'diff';
+import { generatePRBody, type FilePRInput } from '@/lib/github/prBody';
+import { generateMultiFileCommitTitle } from '@/lib/github/commitMessage';
+import type { FileCleanResult, IssueReport } from '@/types/investigation';
+
+interface InvestigationRow {
+  id: string;
+  root_cause: string | null;
+  affected_file: string | null;
+  patch_diff: string | null;
+  confidence: number | null;
+  explanation: string | null;
+  fix_strategy: string | null;
+  file_results: string | null;
+  models_used: string | null;
+  category_ids: string | null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +41,6 @@ export async function POST(request: NextRequest) {
 
     const sql = getSql();
 
-    // Verify project ownership and get GitHub config
     const projectAndGitHub = await sql`
       SELECT
         p.id,
@@ -52,7 +67,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get investigation details
     const investigation = await sql`
       SELECT
         id,
@@ -61,7 +75,10 @@ export async function POST(request: NextRequest) {
         patch_diff,
         confidence,
         explanation,
-        fix_strategy
+        fix_strategy,
+        file_results,
+        models_used,
+        category_ids
       FROM public.investigations
       WHERE id = ${investigationId}
       AND user_id = ${session.user.id}
@@ -72,9 +89,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Investigation not found' }, { status: 404 });
     }
 
-    const inv = investigation[0];
-
-    // Initialize GitHub client
+    const inv = investigation[0] as InvestigationRow;
     const decryptedToken = decryptValue(project.encrypted_token);
     const github = new GitHubClient(
       decryptedToken,
@@ -83,84 +98,152 @@ export async function POST(request: NextRequest) {
     );
 
     try {
-      // Create branch
       const branchName = `snowflake/fix-${inv.id.substring(0, 8)}-${Date.now()}`;
       await github.createBranch(branchName, project.default_branch);
 
-      // Get current file content
-      let currentContent = '';
-      try {
-        const file = await github.getFile(inv.affected_file, project.default_branch);
-        currentContent = file.content;
-      } catch (error) {
-        console.log(`[v0] Could not fetch file ${inv.affected_file}, will create new`);
+      let fileResults: FileCleanResult[] = [];
+
+      if (inv.file_results) {
+        try {
+          fileResults = JSON.parse(inv.file_results) as FileCleanResult[];
+        } catch {
+          console.log('[v0] Could not parse file_results, falling back to single file');
+        }
       }
 
-      // Apply the real LLM-generated patch when it is a workable unified diff;
-      // otherwise fall back to appending the patch only if it looks like code.
-      const fixedContent = applyUnifiedPatch(currentContent, inv.patch_diff)
-        ?? (looksLikeCode(inv.patch_diff) ? currentContent + '\n\n// Snowflake fix applied\n' + inv.patch_diff : null);
+      if (fileResults.length === 0 && inv.affected_file) {
+        let originalContent = '';
+        let originalSHA = '';
+        try {
+          const fileWithSHA = await github.getFileWithSHA(inv.affected_file, project.default_branch);
+          originalContent = fileWithSHA.content;
+          originalSHA = fileWithSHA.sha;
+        } catch (error) {
+          console.log(`[v0] Could not fetch file ${inv.affected_file}, will create new`);
+        }
 
-      if (!fixedContent) {
+        fileResults = [{
+          filePath: inv.affected_file,
+          originalContent,
+          cleanedContent: originalContent,
+          patchDiff: inv.patch_diff || '',
+          originalSHA,
+          issueReport: {
+            totalFound: 1,
+            totalFixed: 1,
+            byCategory: { critical: 1 }
+          },
+          issues: [{
+            severity: 'critical',
+            category: 'crash',
+            line: 0,
+            description: inv.root_cause || 'Unknown issue',
+            before: '',
+            after: '',
+            reason: inv.explanation || ''
+          }],
+          linesChanged: 0,
+          issuesFixed: 1
+        }];
+      }
+
+      const committedFiles: Array<{ filePath: string; patchDiff: string }> = [];
+
+      for (const result of fileResults) {
+        if (!result.originalSHA) {
+          let fileWithSHA;
+          try {
+            fileWithSHA = await github.getFileWithSHA(result.filePath, project.default_branch);
+            result.originalContent = fileWithSHA.content;
+            result.originalSHA = fileWithSHA.sha;
+          } catch {
+            console.log(`[v0] Could not fetch SHA for ${result.filePath}, skipping`);
+            continue;
+          }
+        }
+
+        let fixedContent = result.cleanedContent;
+        if (!fixedContent || fixedContent === result.originalContent) {
+          if (result.patchDiff && result.patchDiff.includes('@@')) {
+            const { applyUnifiedPatch } = await import('@/lib/apply-patch');
+            fixedContent = applyUnifiedPatch(result.originalContent, result.patchDiff) || result.originalContent;
+          } else {
+            fixedContent = result.originalContent;
+          }
+        }
+
+        if (fixedContent === result.originalContent) {
+          console.log(`[v0] No changes for ${result.filePath}, skipping`);
+          continue;
+        }
+
+        const patchDiff = createPatch(
+          result.filePath,
+          result.originalContent,
+          fixedContent
+        );
+
+        result.patchDiff = patchDiff;
+
+        await github.commitFile(
+          branchName,
+          result.filePath,
+          fixedContent,
+          `fix: auto-patch ${result.filePath.split('/').pop()}\n\nGenerated by Snowflake`
+        );
+
+        committedFiles.push({
+          filePath: result.filePath,
+          patchDiff
+        });
+      }
+
+      if (committedFiles.length === 0) {
         return NextResponse.json(
-          { error: 'Unable to apply the generated patch to ' + inv.affected_file },
+          { error: 'No files were modified' },
           { status: 422 }
         );
       }
 
-      // Commit the fix
-      await github.commitFile(
-        branchName,
-        inv.affected_file,
-        fixedContent,
-        `fix: auto-patch for ${inv.root_cause.substring(0, 50)}\n\nGenerated by Snowflake`
+      const commitTitle = generateMultiFileCommitTitle(
+        committedFiles.map(f => f.filePath),
+        inv.root_cause || 'issues'
       );
 
-      // Create PR
-      const patchChanges = extractPatchChanges(inv.patch_diff).map(
-        (line, index) => `${index + 1}. \`${line}\``
-      ).join('\n');
+      const allIssues = fileResults.flatMap(r => r.issues);
+      const totalIssuesFixed = allIssues.length;
 
-      const prBody = `## Error Fix Report
+      const filePRInputs: FilePRInput[] = fileResults.map(result => ({
+        filePath: result.filePath,
+        patchDiff: result.patchDiff,
+        issuesFixed: result.issuesFixed,
+        issueReport: result.issueReport,
+        issues: result.issues
+      }));
 
-### Root Cause
-${inv.root_cause}
-
-### Affected File
-\`${inv.affected_file}\`
-
-### Fix Strategy
-${inv.fix_strategy ?? 'refactor'}
-
-### Changes
-${patchChanges || '1. Applied fix to ' + inv.affected_file}
-
-### Explanation
-${inv.explanation}
-
-### Confidence Score
-${inv.confidence}%
-
-### Investigation ID
-\`${inv.id}\`
-
----
-Generated by [Snowflake](https://snowflake.ai)`;
+      const prBody = generatePRBody({
+        investigationId: inv.id,
+        rootCause: inv.root_cause || 'Unknown issue',
+        confidence: inv.confidence || 0,
+        fixStrategy: inv.fix_strategy || 'refactor',
+        explanation: inv.explanation || '',
+        totalIssuesFixed,
+        fileResults: filePRInputs,
+        defaultBranch: project.default_branch,
+      });
 
       const pr = await github.createPullRequest(
         branchName,
-        `fix: ${inv.root_cause.substring(0, 60)}`,
+        commitTitle,
         prBody,
         project.default_branch
       );
 
-      // Add label
       await github.addPRLabel(pr.number, ['snowflake-auto-fix']);
 
-      // Update investigation with PR details
       await sql`
         UPDATE public.investigations
-        SET pr_url = ${pr.url}, pr_number = ${pr.number}
+        SET pr_url = ${pr.url}, pr_number = ${pr.number}, patch_diff = ${committedFiles[0]?.patchDiff || inv.patch_diff}
         WHERE id = ${investigationId}
       `;
 
@@ -169,7 +252,13 @@ Generated by [Snowflake](https://snowflake.ai)`;
         'pr_created',
         'investigation',
         investigationId,
-        { prUrl: pr.url, prNumber: pr.number, branchName },
+        {
+          prUrl: pr.url,
+          prNumber: pr.number,
+          branchName,
+          filesChanged: committedFiles.length,
+          commitTitle
+        },
         session.user.id
       );
 
@@ -177,6 +266,8 @@ Generated by [Snowflake](https://snowflake.ai)`;
         prUrl: pr.url,
         prNumber: pr.number,
         branchName,
+        filesChanged: committedFiles.length,
+        commitTitle,
       });
     } catch (error) {
       console.error('[v0] GitHub PR creation error:', error);

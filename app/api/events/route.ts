@@ -16,7 +16,10 @@ function parseEventFields(body: Record<string, unknown>) {
   const commitProvider = (body.commitProvider ?? body.commit_provider ?? null) as string | null;
   const commitModel = (body.commitModel ?? body.commit_model ?? null) as string | null;
   const triggerNow = body.triggerNow ?? body.trigger_now ?? true;
-  return { name, repoOwner, repoName, defaultBranch, fixProvider, fixModel, commitProvider, commitModel, triggerNow };
+  const categoryIds = Array.isArray(body.categoryIds) ? body.categoryIds as string[] : 
+    Array.isArray(body.category_ids) ? body.category_ids as string[] : 
+    ['critical_errors', 'security', 'logic_errors', 'code_quality', 'style_cleanup'];
+  return { name, repoOwner, repoName, defaultBranch, fixProvider, fixModel, commitProvider, commitModel, triggerNow, categoryIds };
 }
 
 export async function POST(request: NextRequest) {
@@ -27,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, repoOwner, repoName, defaultBranch, fixProvider, fixModel, commitProvider, commitModel, triggerNow } =
+    const { name, repoOwner, repoName, defaultBranch, fixProvider, fixModel, commitProvider, commitModel, triggerNow, categoryIds } =
       parseEventFields(body);
 
     const sql = getSql();
@@ -61,6 +64,7 @@ export async function POST(request: NextRequest) {
         fix_model,
         commit_provider,
         commit_model,
+        category_ids,
         status
       )
       VALUES (
@@ -74,9 +78,10 @@ export async function POST(request: NextRequest) {
         ${fixModel || null},
         ${commitProvider || null},
         ${commitModel || null},
+        ${categoryIds},
         'idle'
       )
-      RETURNING id, name, repo_owner, repo_name, default_branch, fix_provider, fix_model, commit_provider, commit_model, status, last_commit_sha, created_at
+      RETURNING id, name, repo_owner, repo_name, default_branch, fix_provider, fix_model, commit_provider, commit_model, category_ids, status, last_commit_sha, created_at
     `;
 
     const event = created[0];
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
       'event_created',
       'automation_event',
       event.id,
-      { name, repoOwner, repoName, fixProvider, fixModel, commitProvider, commitModel },
+      { name, repoOwner, repoName, fixProvider, fixModel, commitProvider, commitModel, categoryIds },
       session.user.id
     );
 

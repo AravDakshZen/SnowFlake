@@ -52,6 +52,7 @@
     "cmdk": "1.1.1",
     "crypto-js": "^4.2.0",
     "date-fns": "4.1.0",
+    "diff": "^9.0.0",
     "embla-carousel-react": "8.6.0",
     "input-otp": "1.4.2",
     "lucide-react": "^0.564.0",
@@ -81,6 +82,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",
+    "@types/diff": "^7.0.2",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
