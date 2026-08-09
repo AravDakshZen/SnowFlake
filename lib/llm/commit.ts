@@ -3,15 +3,7 @@ import { openai, createOpenAI } from '@ai-sdk/openai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { google } from '@ai-sdk/google'
 import { withTimeout } from './parse'
-
-const OPENAI_COMPAT_BASE_URLS: Record<string, string> = {
-  deepinfra: 'https://api.deepinfra.com/v1/openai',
-  groq: 'https://api.groq.com/openai/v1',
-  openrouter: 'https://openrouter.ai/api/v1',
-  together: 'https://api.together.xyz/v1',
-  nvidia: 'https://integrate.api.nvidia.com/v1',
-  ollama: 'http://localhost:11434/v1',
-}
+import { OPENAI_COMPAT_BASE_URLS } from './index'
 
 export interface CommitMessageContext {
   provider: string
@@ -49,12 +41,46 @@ export async function generateCommitMessage(params: CommitMessageContext): Promi
   const { text } = await withTimeout(
     generateText({
       model: modelInstance as Parameters<typeof generateText>[0]['model'],
-      system:
-        'You are an expert software engineer writing git commits. Given a bug-fix summary, write ONE concise conventional commit message (type: subject). Do not add a body, issues, or markdown formatting.',
+      system: [
+        'You are an expert software engineer writing git commit messages.',
+        'Rules:',
+        '- Write ONE line only. No body, no issues, no markdown.',
+        '- Use conventional commit format: type(scope): subject',
+        '- Subject must be under 50 characters.',
+        '- Use imperative mood ("fix", "add", "remove", not "fixed", "added").',
+        '- Focus on WHAT changed and WHY, not implementation details.',
+        '- No trailing period.',
+        '',
+        'Types: fix, feat, refactor, perf, docs, test, chore, ci, build',
+        '',
+        'Good examples:',
+        '- fix(auth): resolve token refresh race condition',
+        '- feat(investigation): add retry logic for transient failures',
+        '- perf(dashboard): parallelize stats and clusters fetch',
+        '- refactor(llm): extract OpenAI-compatible provider base class',
+        '',
+        'Bad examples (too long, too vague, wrong tone):',
+        '- Fixed the bug where the token was not refreshing properly in the authentication module',
+        '- Update code',
+        '- WIP: things',
+      ].join('\n'),
       prompt: context,
-      temperature: 0.3,
+      temperature: 0.2,
+      maxTokens: 60,
     })
   )
 
-  return text.trim()
+  // Hard-cap at 12 words so auto-commits never produce wall-of-text messages.
+  // Also strip any markdown fences or quotes the model may have added.
+  const cleaned = text
+    .trim()
+    .replace(/^```[a-z]*\s*/i, '')
+    .replace(/```$/i, '')
+    .split('\n')[0]
+    .replace(/^["']|["']$/g, '')
+    .trim()
+
+  // Take the first line, cap at 12 words
+  const words = cleaned.split(/\s+/).filter(Boolean)
+  return words.slice(0, 12).join(' ')
 }
