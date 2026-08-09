@@ -597,8 +597,18 @@ export default function SettingsPage() {
               <div>
                 <label className="mb-2 block text-xs tracking-widest text-black/40">PROVIDER</label>
                 <select name="provider" value={selectedProvider} onChange={handleProviderChange} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
-                  {Object.values(PROVIDERS).map((provider) => <option key={provider.id} value={provider.id}>{provider.icon}  {provider.name}</option>)}
+                  {Object.values(PROVIDERS).map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.name}{provider.isFree ? ' (FREE)' : ''}
+                    </option>
+                  ))}
                 </select>
+                {selectedProviderDefinition.isFree && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] tracking-widest font-medium">
+                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    FREE TIER AVAILABLE
+                  </div>
+                )}
                 <p className="mt-2 text-xs text-black/45">{selectedProviderDefinition.description}</p>
               </div>
 
