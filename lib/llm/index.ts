@@ -18,6 +18,7 @@ export interface ProviderDefinition {
   requiresKey: boolean
   defaultBaseUrl?: string
   description: string
+  isFree?: boolean
 }
 
 export interface LLMProvider {
@@ -27,15 +28,237 @@ export interface LLMProvider {
 }
 
 export const PROVIDERS: Record<string, ProviderDefinition> = {
-  openai: { id: 'openai', name: 'OpenAI', icon: '◎', models: ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5.2', 'gpt-5.2-pro', 'gpt-5', 'gpt-5-pro', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'o3', 'o3-mini', 'o4-mini', 'gpt-oss-120b', 'gpt-oss-20b'], requiresKey: true, description: 'OpenAI frontier reasoning and coding models.' },
-  anthropic: { id: 'anthropic', name: 'Anthropic', icon: 'A', models: ['claude-opus-5', 'claude-opus-4-5', 'claude-opus-4-1', 'claude-opus-4', 'claude-sonnet-5', 'claude-sonnet-4-5', 'claude-sonnet-4', 'claude-haiku-4-5', 'claude-3-haiku'], requiresKey: true, description: 'Claude models optimized for analysis.' },
-  google: { id: 'google', name: 'Google Gemini', icon: 'G', models: ['gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'], requiresKey: true, description: 'Gemini models for long context investigations.' },
-  deepinfra: { id: 'deepinfra', name: 'Deep Infra', icon: 'DI', models: ['deepseek-ai/DeepSeek-V4-Flash', 'deepseek-ai/DeepSeek-V4-Flash-0731', 'deepseek-ai/DeepSeek-V4-Pro', 'deepseek-ai/DeepSeek-V3.2', 'zai-org/GLM-5.2', 'zai-org/GLM-5.1', 'zai-org/GLM-5', 'zai-org/GLM-4.7-Flash', 'moonshotai/Kimi-K2.7-Code', 'moonshotai/Kimi-K2.6', 'moonshotai/Kimi-K2.5', 'Qwen/Qwen3.6-35B-A3B', 'Qwen/Qwen3.5-397B-A17B', 'Qwen/Qwen3-Max', 'Qwen/Qwen3-Max-Thinking', 'nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B', 'nvidia/NVIDIA-Nemotron-3-Super-120B-A12B', 'google/gemma-4-31B-it', 'ByteDance/Seed-2.0-pro', 'ByteDance/Seed-2.0-code', 'meta-llama/Llama-3.3-70B-Instruct', 'Qwen/Qwen2.5-Coder-32B-Instruct'], requiresKey: true, description: 'Fast hosted open-source models.' },
-  nvidia: { id: 'nvidia', name: 'NVIDIA NIM', icon: 'N', models: ['meta/llama-3.3-70b-instruct', 'meta/llama-3.1-70b-instruct', 'meta/llama-3.1-8b-instruct', 'nvidia/llama-3.1-nemotron-ultra-253b-v1', 'nvidia/llama-3.1-nemotron-70b-instruct', 'nvidia/llama-3.1-nemotron-51b-instruct', 'nvidia/llama-3.3-nemotron-super-49b-v1', 'nvidia/llama-3.3-nemotron-super-49b-v1.5', 'nvidia/nemotron-3-ultra-550b-a55b', 'nvidia/nemotron-3-super-120b-a12b', 'nvidia/nemotron-3-nano-30b-a3b', 'deepseek-ai/deepseek-v4-flash-0731', 'deepseek-ai/deepseek-r1', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'moonshotai/kimi-k2.6', 'z-ai/glm-5.2', 'minimaxai/minimax-m3', 'mistralai/mistral-large', 'mistralai/mistral-nemotron', 'nv-mistralai/mistral-nemo-12b-instruct', 'google/gemma-4-31b-it', 'microsoft/phi-4'], requiresKey: true, description: 'NVIDIA hosted inference endpoints — API key only, no base URL needed.' },
-  ollama: { id: 'ollama', name: 'Ollama', icon: 'O', models: ['llama3.3', 'llama3.2', 'llama3.1', 'qwen3', 'qwen2.5-coder', 'deepseek-coder-v2', 'deepseek-r1', 'phi4', 'mistral', 'mixtral', 'codellama'], requiresKey: false, defaultBaseUrl: 'http://localhost:11434/v1', description: 'Private local models through Ollama.' },
-  together: { id: 'together', name: 'Together AI', icon: 'T', models: ['meta-llama/Llama-3.3-70B-Instruct-Turbo', 'meta-llama/Llama-3.3-70B-Instruct', 'meta-llama/Llama-3.1-8B-Instruct', 'meta-llama/Llama-4-Maverick-17B-128E-Instruct', 'meta-llama/Llama-4-Scout-17B-16E-Instruct', 'Qwen/Qwen3-235B-A22B-Instruct-2507', 'Qwen/Qwen3-Coder-480B-A35B-Instruct', 'Qwen/Qwen3-Coder-Next', 'Qwen/Qwen3-Next-80B-A3B-Instruct', 'Qwen/Qwen2.5-Coder-32B-Instruct', 'Qwen/Qwen2.5-7B-Instruct', 'deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1', 'google/gemma-4-26B-A4B-it', 'google/gemma-4-31B-it', 'MiniMaxAI/MiniMax-M2.7', 'MiniMaxAI/MiniMax-M3', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'], requiresKey: true, description: 'Fast unified inference across open models.' },
-  groq: { id: 'groq', name: 'Groq', icon: 'GQ', models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'groq/compound', 'groq/compound-mini', 'minimaxai/minimax-m2.7', 'qwen/qwen3.6-27b'], requiresKey: true, description: 'Low-latency inference.' },
-  openrouter: { id: 'openrouter', name: 'OpenRouter', icon: 'OR', models: ['openai/gpt-5.4', 'openai/gpt-5.4-mini', 'openai/gpt-5.2', 'openai/gpt-5.2-pro', 'openai/gpt-5', 'openai/gpt-5-pro', 'openai/gpt-5-mini', 'openai/gpt-5-nano', 'openai/gpt-4o', 'openai/gpt-4.1', 'openai/gpt-4.1-mini', 'openai/gpt-4.1-nano', 'openai/o3', 'openai/o3-mini', 'openai/o4-mini', 'anthropic/claude-opus-5', 'anthropic/claude-opus-4.5', 'anthropic/claude-opus-4.1', 'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.5', 'anthropic/claude-haiku-4.5', 'google/gemini-3.5-flash', 'google/gemini-3.1-pro-preview', 'google/gemini-2.5-pro', 'google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite', 'deepseek/deepseek-chat', 'deepseek/deepseek-chat-v3.1', 'deepseek/deepseek-r1', 'deepseek/deepseek-v4-flash', 'meta-llama/llama-3.3-70b-instruct', 'meta-llama/llama-4-maverick', 'meta-llama/llama-4-scout', 'qwen/qwen3.7-max', 'qwen/qwen3.6-max-preview', 'qwen/qwen3-coder', 'qwen/qwen-2.5-coder-32b-instruct', 'mistralai/mistral-large', 'mistralai/mistral-small-3.2-24b-instruct', 'moonshotai/kimi-k3', 'moonshotai/kimi-k2.7-code', 'z-ai/glm-5.2', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'], requiresKey: true, description: 'A unified gateway to many providers.' },
+  openai: {
+    id: 'openai', name: 'OpenAI', icon: '◎',
+    models: [
+      'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano',
+      'gpt-5.2', 'gpt-5.2-pro',
+      'gpt-5', 'gpt-5-pro', 'gpt-5-mini', 'gpt-5-nano',
+      'gpt-4o', 'gpt-4o-mini',
+      'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
+      'o3', 'o3-mini', 'o4-mini',
+      'gpt-4o-realtime-preview', 'gpt-4o-mini-realtime-preview',
+      'gpt-4o-audio-preview', 'gpt-4o-mini-audio-preview',
+      'gpt-4o-search-preview', 'gpt-4o-mini-search-preview',
+      'gpt-oss-120b', 'gpt-oss-20b',
+    ],
+    requiresKey: true,
+    description: 'OpenAI frontier reasoning and coding models.'
+  },
+  anthropic: {
+    id: 'anthropic', name: 'Anthropic', icon: 'A',
+    models: [
+      'claude-opus-5', 'claude-opus-4-5', 'claude-opus-4-1', 'claude-opus-4',
+      'claude-sonnet-5', 'claude-sonnet-4-5', 'claude-sonnet-4',
+      'claude-haiku-4-5', 'claude-haiku-4', 'claude-3-haiku',
+    ],
+    requiresKey: true,
+    description: 'Claude models optimized for analysis.'
+  },
+  google: {
+    id: 'google', name: 'Google Gemini', icon: 'G',
+    models: [
+      'gemini-3.5-flash', 'gemini-3.5-pro',
+      'gemini-3.1-pro-preview', 'gemini-3-flash-preview',
+      'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite',
+      'gemini-2.0-flash', 'gemini-2.0-flash-lite',
+      'gemini-1.5-pro', 'gemini-1.5-flash',
+    ],
+    requiresKey: true,
+    description: 'Gemini models for long context investigations.'
+  },
+  deepinfra: {
+    id: 'deepinfra', name: 'Deep Infra', icon: 'DI',
+    models: [
+      'deepseek-ai/DeepSeek-V4-Flash', 'deepseek-ai/DeepSeek-V4-Flash-0731',
+      'deepseek-ai/DeepSeek-V4-Pro', 'deepseek-ai/DeepSeek-V3.2',
+      'deepseek-ai/DeepSeek-R1', 'deepseek-ai/DeepSeek-V3',
+      'zai-org/GLM-5.2', 'zai-org/GLM-5.1', 'zai-org/GLM-5', 'zai-org/GLM-4.7-Flash',
+      'moonshotai/Kimi-K2.7-Code', 'moonshotai/Kimi-K2.6', 'moonshotai/Kimi-K2.5',
+      'Qwen/Qwen3.6-35B-A3B', 'Qwen/Qwen3.5-397B-A17B', 'Qwen/Qwen3-Max', 'Qwen/Qwen3-Max-Thinking',
+      'Qwen/Qwen3-235B-A22B', 'Qwen/Qwen3-Coder-480B-A35B',
+      'nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B', 'nvidia/NVIDIA-Nemotron-3-Super-120B-A12B',
+      'google/gemma-4-31B-it', 'google/gemma-4-26B-A4B-it',
+      'ByteDance/Seed-2.0-pro', 'ByteDance/Seed-2.0-code',
+      'meta-llama/Llama-3.3-70B-Instruct', 'meta-llama/Llama-4-Maverick-17B-128E-Instruct',
+      'Qwen/Qwen2.5-Coder-32B-Instruct', 'Qwen/Qwen2.5-72B-Instruct',
+      'microsoft/phi-4', 'mistralai/Mistral-Small-3.1-24B-Instruct',
+    ],
+    requiresKey: true,
+    description: 'Fast hosted open-source models with generous free tier.'
+  },
+  nvidia: {
+    id: 'nvidia', name: 'NVIDIA NIM', icon: 'N',
+    models: [
+      'meta/llama-3.3-70b-instruct', 'meta/llama-3.1-70b-instruct', 'meta/llama-3.1-8b-instruct',
+      'nvidia/llama-3.1-nemotron-ultra-253b-v1', 'nvidia/llama-3.1-nemotron-70b-instruct',
+      'nvidia/llama-3.1-nemotron-51b-instruct', 'nvidia/llama-3.3-nemotron-super-49b-v1',
+      'nvidia/llama-3.3-nemotron-super-49b-v1.5', 'nvidia/nemotron-3-ultra-550b-a55b',
+      'nvidia/nemotron-3-super-120b-a12b', 'nvidia/nemotron-3-nano-30b-a3b',
+      'deepseek-ai/deepseek-v4-flash-0731', 'deepseek-ai/deepseek-r1', 'deepseek-ai/deepseek-r1-distill-llama-70b',
+      'openai/gpt-oss-120b', 'openai/gpt-oss-20b',
+      'moonshotai/kimi-k2.6', 'z-ai/glm-5.2',
+      'minimaxai/minimax-m3', 'mistralai/mistral-large', 'mistralai/mistral-nemotron',
+      'nv-mistralai/mistral-nemo-12b-instruct', 'google/gemma-4-31b-it',
+      'microsoft/phi-4', 'qwen/qwen3-235b-a22b',
+    ],
+    requiresKey: true,
+    isFree: true,
+    description: 'NVIDIA hosted free inference — 1000 API credits/day for free tier users.'
+  },
+  ollama: {
+    id: 'ollama', name: 'Ollama', icon: 'O',
+    models: [
+      'llama3.3', 'llama3.2', 'llama3.1', 'llama3',
+      'qwen3', 'qwen3-coder', 'qwen2.5-coder',
+      'deepseek-coder-v2', 'deepseek-r1', 'deepseek-v2',
+      'phi4', 'phi3', 'mistral', 'mixtral', 'codellama',
+      'gemma3', 'gemma2', 'command-r-plus', 'command-r',
+    ],
+    requiresKey: false,
+    defaultBaseUrl: 'http://localhost:11434/v1',
+    description: 'Private local models through Ollama.'
+  },
+  together: {
+    id: 'together', name: 'Together AI', icon: 'T',
+    models: [
+      'meta-llama/Llama-3.3-70B-Instruct-Turbo', 'meta-llama/Llama-3.3-70B-Instruct',
+      'meta-llama/Llama-3.1-8B-Instruct', 'meta-llama/Llama-3.1-70B-Instruct',
+      'meta-llama/Llama-4-Maverick-17B-128E-Instruct', 'meta-llama/Llama-4-Scout-17B-16E-Instruct',
+      'Qwen/Qwen3-235B-A22B-Instruct-2507', 'Qwen/Qwen3-Coder-480B-A35B-Instruct',
+      'Qwen/Qwen3-Coder-Next', 'Qwen/Qwen3-Next-80B-A3B-Instruct',
+      'Qwen/Qwen2.5-Coder-32B-Instruct', 'Qwen/Qwen2.5-7B-Instruct',
+      'deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1',
+      'google/gemma-4-26B-A4B-it', 'google/gemma-4-31B-it',
+      'MiniMaxAI/MiniMax-M2.7', 'MiniMaxAI/MiniMax-M3',
+      'openai/gpt-oss-120b', 'openai/gpt-oss-20b',
+      'mistralai/Mistral-7B-Instruct-v0.3', 'NousResearch/Hermes-3-Llama-3.1-405B',
+    ],
+    requiresKey: true,
+    description: 'Fast unified inference across open models.'
+  },
+  groq: {
+    id: 'groq', name: 'Groq', icon: 'GQ',
+    models: [
+      'llama-3.3-70b-versatile', 'llama-3.1-8b-instant',
+      'llama-3.1-70b-versatile', 'llama-3.2-1b-preview',
+      'llama-3.2-3b-preview', 'llama-3.2-11b-vision-preview',
+      'llama-3.2-90b-vision-preview', 'gemma2-9b-it',
+      'mixtral-8x7b-32768', 'mixtral-8x8b-32768',
+      'openai/gpt-oss-120b', 'openai/gpt-oss-20b',
+      'groq/compound', 'groq/compound-mini',
+      'minimaxai/minimax-m2.7', 'qwen/qwen3.6-27b',
+    ],
+    requiresKey: true,
+    description: 'Ultra low-latency inference with free tier.'
+  },
+  openrouter: {
+    id: 'openrouter', name: 'OpenRouter', icon: 'OR',
+    models: [
+      'openai/gpt-5.4', 'openai/gpt-5.4-mini', 'openai/gpt-5.2', 'openai/gpt-5.2-pro',
+      'openai/gpt-5', 'openai/gpt-5-pro', 'openai/gpt-5-mini', 'openai/gpt-5-nano',
+      'openai/gpt-4o', 'openai/gpt-4.1', 'openai/gpt-4.1-mini', 'openai/gpt-4.1-nano',
+      'openai/o3', 'openai/o3-mini', 'openai/o4-mini',
+      'anthropic/claude-opus-5', 'anthropic/claude-opus-4.5', 'anthropic/claude-opus-4.1',
+      'anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.5', 'anthropic/claude-haiku-4.5',
+      'anthropic/claude-3.5-haiku', 'anthropic/claude-3.5-sonnet',
+      'google/gemini-3.5-flash', 'google/gemini-3.1-pro-preview',
+      'google/gemini-2.5-pro', 'google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite',
+      'deepseek/deepseek-chat', 'deepseek/deepseek-chat-v3.1', 'deepseek/deepseek-r1',
+      'deepseek/deepseek-v4-flash',
+      'meta-llama/llama-3.3-70b-instruct', 'meta-llama/llama-4-maverick', 'meta-llama/llama-4-scout',
+      'qwen/qwen3.7-max', 'qwen/qwen3.6-max-preview', 'qwen/qwen3-coder',
+      'qwen/qwen-2.5-coder-32b-instruct', 'qwen/qwen-2.5-72b-instruct',
+      'mistralai/mistral-large', 'mistralai/mistral-small-3.2-24b-instruct',
+      'moonshotai/kimi-k3', 'moonshotai/kimi-k2.7-code',
+      'z-ai/glm-5.2', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b',
+      'nousresearch/hermes-3-llama-3.1-405b', 'nousresearch/hermes-3-llama-3.1-70b',
+    ],
+    requiresKey: true,
+    description: 'Unified gateway to 100+ models, many free or near-free.'
+  },
+  cerebras: {
+    id: 'cerebras', name: 'Cerebras', icon: 'CB',
+    models: [
+      'llama-3.3-70b', 'llama-3.1-8b',
+      'llama-3.1-70b', 'llama-3.2-3b',
+    ],
+    requiresKey: true,
+    isFree: true,
+    description: 'Ultra-fast inference with free tier — wafer-scale compute.'
+  },
+  sambanova: {
+    id: 'sambanova', name: 'SambaNova', icon: 'SN',
+    models: [
+      'Meta-Llama-3.3-70B-Instruct', 'Meta-Llama-3.1-8B-Instruct',
+      'DeepSeek-V3-0324', 'DeepSeek-R1',
+      'QwQ-32B', 'Qwen-2.5-72B-Instruct',
+    ],
+    requiresKey: true,
+    isFree: true,
+    description: 'Free tier inference on SambaNova SN40L chips.'
+  },
+  novita: {
+    id: 'novita', name: 'Novita AI', icon: 'NV',
+    models: [
+      'meta-llama/llama-3.3-70b-instruct', 'meta-llama/llama-3.1-8b-instruct',
+      'deepseek/deepseek-r1', 'deepseek/deepseek-v3-0324',
+      'qwen/qwen-2.5-72b-instruct', 'nousresearch/hermes-3-llama-3.1-405b',
+    ],
+    requiresKey: true,
+    isFree: true,
+    description: 'Free tier with high-quality open model hosting.'
+  },
+  chutes: {
+    id: 'chutes', name: 'Chutes AI', icon: 'CH',
+    models: [
+      'meta-llama/llama-3.3-70b-instruct', 'meta-llama/llama-3.1-8b-instruct',
+      'deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1',
+      'Qwen/Qwen3-235B-A22B',
+    ],
+    requiresKey: true,
+    isFree: true,
+    description: 'Free inference with generous rate limits.'
+  },
+  siliconflow: {
+    id: 'siliconflow', name: 'SiliconFlow', icon: 'SF',
+    models: [
+      'Qwen/Qwen3-235B-A22B', 'Qwen/Qwen3-Coder-480B-A35B',
+      'deepseek-ai/DeepSeek-V3', 'deepseek-ai/DeepSeek-R1',
+      'meta-llama/Llama-3.3-70B-Instruct', 'Pro/deepseek-ai/DeepSeek-R1',
+    ],
+    requiresKey: true,
+    isFree: true,
+    description: 'Chinese cloud with generous free tier.'
+  },
+  openai_compatible: {
+    id: 'openai_compatible', name: 'Custom / OpenAI-Compatible', icon: '⚡',
+    models: [],
+    requiresKey: true,
+    defaultBaseUrl: '',
+    description: 'Any OpenAI-compatible endpoint (vLLM, LiteLLM, etc.).'
+  },
+}
+
+// All providers that use an OpenAI-compatible chat completions endpoint.
+// These share the same request/response shape — only the base URL differs.
+export const OPENAI_COMPAT_PROVIDERS = new Set([
+  'deepinfra', 'groq', 'openrouter', 'together', 'nvidia', 'ollama',
+  'cerebras', 'sambanova', 'novita', 'chutes', 'siliconflow', 'openai_compatible',
+])
+
+export const OPENAI_COMPAT_BASE_URLS: Record<string, string> = {
+  deepinfra: 'https://api.deepinfra.com/v1/openai',
+  groq: 'https://api.groq.com/openai/v1',
+  openrouter: 'https://openrouter.ai/api/v1',
+  together: 'https://api.together.xyz/v1',
+  nvidia: 'https://integrate.api.nvidia.com/v1',
+  ollama: 'http://localhost:11434/v1',
+  cerebras: 'https://api.cerebras.ai/v1',
+  sambanova: 'https://api.sambanova.ai/v1',
+  novita: 'https://api.novita.ai/v3/openai',
+  chutes: 'https://api.chutes.ai/v1',
+  siliconflow: 'https://api.siliconflow.cn/v1',
 }
 
 export async function getLLMProvider(provider: string, apiKey: string, model: string, baseUrl?: string): Promise<LLMProvider> {
@@ -49,6 +272,17 @@ export async function getLLMProvider(provider: string, apiKey: string, model: st
     case 'openrouter': { const { OpenRouterProvider } = await import('./providers/openrouter'); return new OpenRouterProvider(apiKey, model) }
     case 'together': { const { TogetherProvider } = await import('./providers/together'); return new TogetherProvider(apiKey, model) }
     case 'deepinfra': { const { DeepInfraProvider } = await import('./providers/deepinfra'); return new DeepInfraProvider(apiKey, model) }
+    // Free providers — share OpenAI-compatible base URL logic
+    case 'cerebras': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.cerebras) }
+    case 'sambanova': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.sambanova) }
+    case 'novita': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.novita) }
+    case 'chutes': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.chutes) }
+    case 'siliconflow': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.siliconflow) }
+    case 'openai_compatible': {
+      if (!baseUrl) throw new Error('Custom OpenAI-compatible provider requires a Base URL.')
+      const { OpenAICompatibleProvider } = await import('./providers/openai-compatible')
+      return new OpenAICompatibleProvider(apiKey, model, baseUrl)
+    }
     default: throw new Error(`Unsupported LLM provider: ${provider}`)
   }
 }
