@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { RevealText } from '@/components/reveal-text'
 import { toastError, toastSuccess } from '@/lib/toasts'
 import { DiffView } from '@/components/diff-viewer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, ExternalLink, FileCode, AlertTriangle, CheckCircle2, Clock, Copy } from 'lucide-react'
+import { ArrowLeft, ExternalLink, CheckCircle2, Clock, Copy, Cpu, XCircle, AlertTriangle } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 function generateInvestigationTitle(inv: any): string {
@@ -29,6 +28,15 @@ function getStatusColor(status: string) {
     case 'in_progress': return 'bg-blue-100 text-blue-700 border-blue-200'
     case 'failed': return 'bg-red-100 text-red-700 border-red-200'
     default: return 'bg-gray-100 text-gray-700 border-gray-200'
+  }
+}
+
+function getStatusIcon(status: string) {
+  switch (status) {
+    case 'completed': return <CheckCircle2 className="h-4 w-4 text-green-600" />
+    case 'in_progress': return <Clock className="h-4 w-4 text-blue-600 animate-pulse" />
+    case 'failed': return <AlertTriangle className="h-4 w-4 text-red-600" />
+    default: return <Clock className="h-4 w-4 text-gray-500" />
   }
 }
 
@@ -78,6 +86,8 @@ export default function InvestigationDetailPage() {
 
   const inv = investigation.investigation
   const investigationTitle = generateInvestigationTitle(inv)
+  const modelsUsed = investigation.models_used || []
+  const failedModels = investigation.failed_models || []
 
   const handleSavePatch = async () => {
     setIsSavingPatch(true)
@@ -118,7 +128,8 @@ export default function InvestigationDetailPage() {
           </Button>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className={getStatusColor(inv.status)}>
-              {inv.status.replace('_', ' ')}
+              {getStatusIcon(inv.status)}
+              <span className="ml-1">{inv.status.replace('_', ' ')}</span>
             </Badge>
             {inv.pr_url && (
               <a href={inv.pr_url} target="_blank" rel="noopener noreferrer">
@@ -135,7 +146,7 @@ export default function InvestigationDetailPage() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 md:px-12 py-16">
         
-        {/* Question - Now shows relatable title */}
+        {/* Question */}
         <section className="mb-12">
           <TooltipProvider>
             <Tooltip>
@@ -168,6 +179,33 @@ export default function InvestigationDetailPage() {
             </div>
           ))}
         </section>
+
+        {/* Models Used */}
+        {(modelsUsed.length > 0 || failedModels.length > 0) && (
+          <section className="mb-12">
+            <h2 className="text-xl font-light tracking-tight mb-4 flex items-center gap-2">
+              <Cpu className="h-5 w-5 text-black/40" />
+              Models Used
+            </h2>
+            <div className="space-y-2">
+              {modelsUsed.map((model: any, i: number) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-green-200 bg-green-50">
+                  <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                  <span className="text-sm font-mono">{model.provider}/{model.model}</span>
+                  <Badge variant="outline" className="ml-auto text-[10px] bg-green-100 text-green-700 border-green-200">SUCCESS</Badge>
+                </div>
+              ))}
+              {failedModels.map((model: any, i: number) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-red-200 bg-red-50">
+                  <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span className="text-sm font-mono">{model.provider}/{model.model}</span>
+                  <span className="text-xs text-red-600 ml-auto truncate max-w-[200px]">{model.error || 'Failed'}</span>
+                  <Badge variant="outline" className="text-[10px] bg-red-100 text-red-700 border-red-200">FAILED</Badge>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Summary */}
         {inv.summary && (
@@ -214,20 +252,17 @@ export default function InvestigationDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-light tracking-tight">Fix Details</h2>
               {inv.patch_diff && (
-                <button
-                  onClick={() => {
-                    if (isEditingPatch) {
-                      setIsEditingPatch(false)
-                      setPatchDraft(inv.patch_diff)
-                    } else {
-                      setPatchDraft(inv.patch_diff)
-                      setIsEditingPatch(true)
-                    }
-                  }}
-                  className="text-xs tracking-widest px-4 py-2 rounded-lg border border-black/10 hover:bg-black hover:text-white transition-colors"
-                >
+                <Button variant="outline" size="sm" onClick={() => {
+                  if (isEditingPatch) {
+                    setIsEditingPatch(false)
+                    setPatchDraft(inv.patch_diff)
+                  } else {
+                    setPatchDraft(inv.patch_diff)
+                    setIsEditingPatch(true)
+                  }
+                }}>
                   {isEditingPatch ? 'CANCEL' : 'EDIT PATCH'}
-                </button>
+                </Button>
               )}
             </div>
             
@@ -253,13 +288,9 @@ export default function InvestigationDetailPage() {
                       className="w-full min-h-[320px] text-xs font-mono bg-black/[0.04] p-3 rounded border border-black/10 focus:outline-none focus:border-black/30 resize-y leading-relaxed"
                     />
                     <div className="flex justify-end mt-3">
-                      <button
-                        onClick={handleSavePatch}
-                        disabled={isSavingPatch}
-                        className="text-xs tracking-widest px-5 py-2 rounded-lg bg-black text-white hover:bg-black/85 transition-colors disabled:opacity-50"
-                      >
+                      <Button onClick={handleSavePatch} disabled={isSavingPatch}>
                         {isSavingPatch ? 'SAVING...' : 'SAVE PATCH'}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -280,7 +311,8 @@ export default function InvestigationDetailPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors"
             >
-              VIEW PR #{inv.pr_number} ↗
+              <ExternalLink className="h-4 w-4" />
+              VIEW PR #{inv.pr_number}
             </a>
           </section>
         )}

@@ -132,6 +132,14 @@ export default function DashboardPage() {
     return () => source.close()
   }, [projectId, fetchDashboardData])
 
+  useEffect(() => {
+    if (!projectId) return
+    const interval = setInterval(() => {
+      fetchDashboardData(projectId)
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [projectId, fetchDashboardData])
+
   const handleInvestigate = async (clusterId: string) => {
     if (!projectId) return
     try {

@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Copy, Download, Trash2 } from 'lucide-react'
+import { Copy, Download, Trash2, RefreshCw } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 type FeedEvent = { type: string; timestamp?: string; message?: string; [key: string]: unknown }
@@ -32,6 +32,7 @@ const TAG_COLORS: Record<string, string> = {
   CI: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
   ERROR: 'bg-red-500/10 text-red-400 border-red-500/20',
   DONE: 'bg-green-500/10 text-green-300 border-green-500/20',
+  EVENT: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
 }
 
 const TAG_DESCRIPTIONS: Record<string, string> = {
@@ -127,6 +128,38 @@ function mapEventToLines(event: FeedEvent): TerminalLine[] {
         { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `Confidence: ${d.confidence ?? '?'}% · Lines changed: ${d.linesChanged ?? '?'}` },
         { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `❄️ Snowflake investigation #${String(d.investigationId ?? '').slice(0, 8)} closed` },
       ]
+    case 'event:created':
+      return [
+        { timestamp: t, tag: 'EVENT', tagColor: TAG_COLORS.EVENT, message: `Event "${d.name ?? ''}" created — waiting for trigger` },
+      ]
+    case 'event:started':
+      return [
+        { timestamp: t, tag: 'EVENT', tagColor: TAG_COLORS.EVENT, message: `Event "${d.name ?? ''}" started analyzing ${d.repo ?? ''}` },
+        { timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: `Fetching latest commit from ${d.repo ?? ''}` },
+      ]
+    case 'event:progress': {
+      const stage = String(d.stage ?? '')
+      if (stage === 'fetching_commit') {
+        return [{ timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: `Fetching commit ${String(d.commitSha ?? '').substring(0, 7)}` }]
+      }
+      if (stage === 'analyzing') {
+        return [{ timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Analyzing with ${d.provider ?? ''}/${d.model ?? ''}` }]
+      }
+      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: `Progress: ${stage || 'unknown'}` }]
+    }
+    case 'event:completed':
+      return [
+        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `Event "${d.name ?? ''}" completed` },
+        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `Root cause: ${String(d.rootCause ?? d.message ?? '').substring(0, 80)}` },
+      ]
+    case 'event:failed':
+      return [{ timestamp: t, tag: 'ERROR', tagColor: TAG_COLORS.ERROR, message: `Event failed: ${String(d.error ?? '').substring(0, 100)}` }]
+    case 'llm:fallback':
+      return [{ timestamp: t, tag: 'WARN', tagColor: TAG_COLORS.WARN, message: `Falling back from ${d.fromProvider ?? ''} to ${d.provider ?? ''}` }]
+    case 'llm:model_tried': {
+      const success = d.success !== false
+      return [{ timestamp: t, tag: success ? 'PASS 1' : 'WARN', tagColor: success ? TAG_COLORS['PASS 1'] : TAG_COLORS.WARN, message: `${success ? '✓' : '✗'} ${d.provider ?? ''}/${d.model ?? ''} — ${success ? 'analysis succeeded' : String(d.error ?? 'failed').substring(0, 60)}` }]
+    }
     default:
       return mapRawEvent(event)
   }
@@ -140,36 +173,6 @@ function mapRawEvent(event: FeedEvent): TerminalLine[] {
   switch (event.type) {
     case 'connected':
       return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: 'Live stream connected' }]
-    case 'event:started':
-      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: msg || `Event "${d.name ?? ''}" started analyzing ${d.repo ?? ''}` }]
-    case 'event:progress': {
-      const stage = String(d.stage ?? '')
-      const provider = String(d.provider ?? '')
-      const model = String(d.model ?? '')
-      if (stage === 'fetching_commit') {
-        return [{ timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: msg || `Fetching commit ${String(d.commitSha ?? '').substring(0, 7)}` }]
-      }
-      if (stage === 'analyzing' && provider) {
-        return [{ timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: msg || `Analyzing with ${provider}/${model}` }]
-      }
-      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: msg || `Progress: ${stage || 'unknown'}` }]
-    }
-    case 'llm:fallback':
-      return [{ timestamp: t, tag: 'WARN', tagColor: TAG_COLORS.WARN, message: msg || `Falling back from ${d.fromProvider ?? ''} to ${d.provider ?? ''}` }]
-    case 'event:completed':
-      return [
-        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: msg || `Event "${d.name ?? ''}" completed` },
-        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `Root cause: ${String(d.rootCause ?? d.message ?? '').substring(0, 80)}` },
-      ]
-    case 'event:failed':
-      return [{ timestamp: t, tag: 'ERROR', tagColor: TAG_COLORS.ERROR, message: msg || `Event failed: ${String(d.error ?? '').substring(0, 100)}` }]
-    case 'investigation:progress': {
-      const stage = String(d.stage ?? '')
-      if (stage === 'analyzing') {
-        return [{ timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: 'LLM analyzing stack trace and source files...' }]
-      }
-      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: msg || `Investigation progress: ${stage}` }]
-    }
     default:
       return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: msg || labels[event.type] || event.type }]
   }
@@ -205,6 +208,7 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
   const [activeInvestigation, setActiveInvestigation] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
   const linesRef = useRef<TerminalLine[]>([])
@@ -237,6 +241,34 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
     } catch {}
     setLoading(false)
   }, [])
+
+  const handleRefresh = useCallback(async () => {
+    if (!projectId) return
+    setRefreshing(true)
+    try {
+      const res = await fetch(`/api/audit?projectId=${encodeURIComponent(projectId)}&limit=50`)
+      const data = await res.json()
+      if (data.logs) {
+        const newLines: TerminalLine[] = []
+        for (const log of data.logs) {
+          const feedEvent = auditToFeedEvent(log)
+          if (feedEvent) {
+            newLines.push(...mapEventToLines(feedEvent))
+          }
+        }
+        if (newLines.length > 0) {
+          setLines(prev => {
+            const existing = new Set(prev.map(l => `${l.timestamp}-${l.tag}-${l.message}`))
+            const unique = newLines.filter(l => !existing.has(`${l.timestamp}-${l.tag}-${l.message}`))
+            const updated = [...prev, ...unique].slice(-limit)
+            persistLines(updated)
+            return updated
+          })
+        }
+      }
+    } catch {}
+    setRefreshing(false)
+  }, [projectId, limit, persistLines])
 
   // SSE stream for live events
   useEffect(() => {
@@ -303,7 +335,7 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
           <span className="size-3 rounded-full bg-[#28C840]" />
           <span className="ml-3 text-xs text-white/40 font-[family-name:var(--font-mono)]">snowflake@tracewise: ~/investigation</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
           <span className="text-[11px] text-white/30 font-[family-name:var(--font-mono)]">{lines.length} lines</span>
           <Separator orientation="vertical" className="h-3 bg-white/10" />
           <div className="flex items-center gap-1.5">
@@ -311,13 +343,16 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
             <span className="text-[11px] text-white/30">{connected ? 'Connected' : 'Waiting'}</span>
           </div>
           <Separator orientation="vertical" className="h-3 bg-white/10" />
-          <Button variant="ghost" size="icon-sm" onClick={handleClear} className="text-white/40 hover:text-white/70 h-6 w-6">
+          <Button variant="ghost" size="icon-sm" onClick={handleRefresh} disabled={refreshing} className="text-white/40 hover:text-white/70 h-6 w-6" title="Refresh logs from server">
+            <RefreshCw className={`size-3 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={handleClear} className="text-white/40 hover:text-white/70 h-6 w-6" title="Clear logs">
             <Trash2 className="size-3" />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={handleCopy} className="text-white/40 hover:text-white/70 h-6 w-6">
+          <Button variant="ghost" size="icon-sm" onClick={handleCopy} className="text-white/40 hover:text-white/70 h-6 w-6" title="Copy logs">
             <Copy className="size-3" />
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={handleExport} className="text-white/40 hover:text-white/70 h-6 w-6">
+          <Button variant="ghost" size="icon-sm" onClick={handleExport} className="text-white/40 hover:text-white/70 h-6 w-6" title="Export logs">
             <Download className="size-3" />
           </Button>
         </div>

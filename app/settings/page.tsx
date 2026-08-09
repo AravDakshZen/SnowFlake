@@ -47,6 +47,22 @@ export default function SettingsPage() {
   const [dynamicModels, setDynamicModels] = useState<any[]>([])
   const [modelsLoading, setModelsLoading] = useState(false)
 
+  const getApiKeyPlaceholder = (provider: string, isEditing: boolean) => {
+    if (isEditing) return 'Leave blank to keep the saved key'
+    const placeholders: Record<string, string> = {
+      openai: 'sk-...',
+      anthropic: 'sk-ant-...',
+      google: 'AIza...',
+      nvidia: 'nvapi-...',
+      ollama: 'Not needed for local models',
+      together: '...',
+      openrouter: 'sk-or-...',
+      cerebras: '...',
+      openai_compatible: '...',
+    }
+    return placeholders[provider] || 'Your API key'
+  }
+
   const loadSettings = useCallback(async () => {
     try {
       const projectResponse = await fetch('/api/project/current')
@@ -672,9 +688,14 @@ export default function SettingsPage() {
                         </option>
                       ))
                     ) : (
-                      selectedProviderDefinition?.models.map((model) => (
-                        <option key={model} value={model}>{model}</option>
-                      ))
+                      selectedProviderDefinition?.models.map((model) => {
+                        const detail = selectedProviderDefinition?.modelDetails?.[model]
+                        return (
+                          <option key={model} value={model}>
+                            {model}{detail?.context ? ` (${detail.context})` : ''}{detail?.free ? ' — FREE' : ''}
+                          </option>
+                        )
+                      })
                     )}
                   </select>
                   <Button
@@ -714,7 +735,7 @@ export default function SettingsPage() {
                   name="api_key" 
                   value={apiKeyValue}
                   onChange={(e) => setApiKeyValue(e.target.value)}
-                  placeholder={editingConfigId ? 'Leave blank to keep the saved key' : 'Your API key (encrypted)'} 
+                  placeholder={getApiKeyPlaceholder(selectedProvider, !!editingConfigId)} 
                   required={!editingConfigId}
                   className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
                 />
@@ -778,9 +799,14 @@ export default function SettingsPage() {
                                       </option>
                                     ))
                                   ) : (
-                                    providerDef?.models.map((model) => (
-                                      <option key={model} value={model}>{model}</option>
-                                    ))
+                                    providerDef?.models.map((model) => {
+                                      const detail = providerDef?.modelDetails?.[model]
+                                      return (
+                                        <option key={model} value={model}>
+                                          {model}{detail?.context ? ` (${detail.context})` : ''}{detail?.free ? ' — FREE' : ''}
+                                        </option>
+                                      )
+                                    })
                                   )}
                                 </select>
                                 <Button
@@ -814,7 +840,7 @@ export default function SettingsPage() {
                                 type="password"
                                 value={apiKeyValue}
                                 onChange={(e) => setApiKeyValue(e.target.value)}
-                                placeholder="Leave blank to keep the saved key"
+                                placeholder={getApiKeyPlaceholder(config.provider, true)}
                                 className="w-full px-3 py-2 rounded-lg border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
                               />
                             </div>
