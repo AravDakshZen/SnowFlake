@@ -124,7 +124,7 @@ export default function DashboardPage() {
     source.onmessage = (event) => {
       try {
         const raw = JSON.parse(event.data) as Record<string, unknown>
-        if (raw.type === 'investigation:complete' || raw.type === 'event:completed' || raw.type === 'pr:created') {
+        if (raw.type === 'investigation:queued' || raw.type === 'investigation:progress' || raw.type === 'investigation:complete' || raw.type === 'event:started' || raw.type === 'event:completed' || raw.type === 'pr:created') {
           fetchDashboardData(projectId)
         }
       } catch {}
