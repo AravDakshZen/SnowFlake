@@ -6,6 +6,57 @@ import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
 import { DashboardLiveFeed } from '@/components/dashboard-live-feed'
 import { toastError } from '@/lib/toasts'
+import {
+  BarChart3,
+  Search,
+  Microscope,
+  CheckCircle2,
+  AlertTriangle,
+  GitPullRequest,
+  Clock,
+  ChevronRight,
+  Activity,
+  ArrowRight,
+  XCircle,
+  Loader2,
+} from 'lucide-react'
+
+const STAT_ICONS = {
+  totalLogs: BarChart3,
+  activeClusters: Search,
+  totalInvestigations: Microscope,
+  resolvedIssues: CheckCircle2,
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  open: 'bg-red-100 text-red-700',
+  resolved: 'bg-green-100 text-green-700',
+  completed: 'bg-green-100 text-green-700',
+  in_progress: 'bg-blue-100 text-blue-700',
+  queued: 'bg-amber-100 text-amber-700',
+  failed: 'bg-red-100 text-red-700',
+}
+
+const STRATEGY_LABELS: Record<string, string> = {
+  one_liner: 'One-liner fix',
+  'one-liner': 'One-liner fix',
+  refactor: 'Refactor',
+  dependency_update: 'Dependency update',
+  'dependency-update': 'Dependency update',
+  config_change: 'Config change',
+  'config-change': 'Config change',
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -23,7 +74,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setMounted(true)
-    
+
     fetch('/api/project/current')
       .then(res => res.json())
       .then(data => {
@@ -31,28 +82,29 @@ export default function DashboardPage() {
         setProjectId(id)
         if (!id) { setGithubLoading(false); return }
         const query = `?projectId=${encodeURIComponent(id)}`
+
+        // All fetches in parallel — each resolves independently
         Promise.allSettled([
           fetch(`/api/github/profile${query}`).then(res => res.json()),
           fetch(`/api/github/repos${query}`).then(res => res.json()),
-        ]).then(([profileResult, reposResult]) => {
-          if (profileResult.status === 'fulfilled' && profileResult.value?.profile) setGithubProfile(profileResult.value.profile)
-          if (reposResult.status === 'fulfilled' && reposResult.value?.repos) setGithubRepos(reposResult.value.repos)
-        }).finally(() => setGithubLoading(false))
-        Promise.all([
           fetch(`/api/stats${query}`).then(res => res.json()),
           fetch(`/api/clusters${query}`).then(res => res.json()),
           fetch(`/api/investigations${query}`).then(res => res.json()),
-        ]).then(([nextStats, nextClusters, nextInvestigations]) => {
-          setStats(nextStats)
-          setClusters(nextClusters)
-          setInvestigations(nextInvestigations)
+        ]).then(([profileResult, reposResult, statsResult, clustersResult, invResult]) => {
+          if (profileResult.status === 'fulfilled' && profileResult.value?.profile) setGithubProfile(profileResult.value.profile)
+          if (reposResult.status === 'fulfilled' && reposResult.value?.repos) setGithubRepos(reposResult.value.repos)
+          if (statsResult.status === 'fulfilled') setStats(statsResult.value)
+          if (clustersResult.status === 'fulfilled') setClusters(clustersResult.value)
+          if (invResult.status === 'fulfilled') setInvestigations(invResult.value)
         }).finally(() => {
+          setGithubLoading(false)
           setStatsLoading(false)
           setClustersLoading(false)
           setInvestigationsLoading(false)
         })
       })
       .catch(() => {
+        setGithubLoading(false)
         setStatsLoading(false)
         setClustersLoading(false)
         setInvestigationsLoading(false)
@@ -74,14 +126,14 @@ export default function DashboardPage() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            <a 
-              href="/" 
+            <a
+              href="/"
               className="px-4 py-2 text-xs tracking-widest font-light bg-black/5 hover:bg-black/10 rounded-lg transition-colors"
             >
               HOME
             </a>
-            <a 
-              href="/settings" 
+            <a
+              href="/settings"
               className="px-4 py-2 text-xs tracking-widest font-light bg-black/5 hover:bg-black/10 rounded-lg transition-colors"
             >
               SETTINGS
@@ -92,40 +144,43 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 md:px-12 lg:px-20 py-16">
-        
+
         {/* Stats Grid */}
         <section className="mb-16">
           <RevealText className="text-3xl md:text-4xl font-light tracking-tight mb-8">
             System Overview
           </RevealText>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {statsLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="p-6 rounded-2xl border border-black/[0.07] bg-white">
-                  <div className="size-8 rounded-md bg-black/5 animate-pulse mb-4" />
-                  <div className="h-3 w-20 bg-black/5 animate-pulse mb-3" />
-                  <div className="h-8 w-16 bg-black/10 animate-pulse" />
+                  <div className="size-8 rounded-md bg-black/5 animate-pulse mb-4" style={{ animationDelay: `${i * 75}ms` }} />
+                  <div className="h-3 w-20 bg-black/5 animate-pulse mb-3" style={{ animationDelay: `${i * 75 + 50}ms` }} />
+                  <div className="h-8 w-16 bg-black/10 animate-pulse" style={{ animationDelay: `${i * 75 + 100}ms` }} />
                 </div>
               ))
             ) : (
               [
-              { label: 'Total Logs', value: stats?.totalLogs || 0, icon: '📊' },
-              { label: 'Active Clusters', value: stats?.activeClusters || 0, icon: '🔍' },
-              { label: 'Investigations', value: stats?.totalInvestigations || 0, icon: '🔬' },
-              { label: 'Resolved Issues', value: stats?.resolvedIssues || 0, icon: '✅' },
-              ].map((stat) => (
-                <div 
-                  key={stat.label}
-                  className="p-6 rounded-2xl border border-black/[0.07] bg-white hover:bg-[#fafaf8] transition-all duration-500 hover:border-black/[0.15]"
-                >
-                  <div className="text-3xl mb-2">{stat.icon}</div>
-                  <div className="text-sm text-black/40 tracking-widest uppercase mb-1">{stat.label}</div>
-                  <div className="text-3xl font-light" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
-                    {stat.value.toLocaleString()}
+                { key: 'totalLogs', label: 'Total Logs', value: stats?.totalLogs || 0 },
+                { key: 'activeClusters', label: 'Active Clusters', value: stats?.activeClusters || 0 },
+                { key: 'totalInvestigations', label: 'Investigations', value: stats?.totalInvestigations || 0 },
+                { key: 'resolvedIssues', label: 'Resolved Issues', value: stats?.resolvedIssues || 0 },
+              ].map((stat) => {
+                const Icon = STAT_ICONS[stat.key as keyof typeof STAT_ICONS]
+                return (
+                  <div
+                    key={stat.label}
+                    className="p-6 rounded-2xl border border-black/[0.07] bg-white hover:bg-[#fafaf8] transition-all duration-500 hover:border-black/[0.15]"
+                  >
+                    <Icon className="size-6 text-black/40 mb-3" strokeWidth={1.5} />
+                    <div className="text-sm text-black/40 tracking-widest uppercase mb-1">{stat.label}</div>
+                    <div className="text-3xl font-light" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
+                      {stat.value.toLocaleString()}
+                    </div>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </section>
@@ -135,7 +190,7 @@ export default function DashboardPage() {
           <RevealText className="text-3xl md:text-4xl font-light tracking-tight mb-8">
             GitHub Integration
           </RevealText>
-          
+
           <div className="p-6 rounded-2xl border border-black/[0.07] bg-white">
             {githubLoading ? (
               <div className="flex items-center gap-4">
@@ -150,6 +205,7 @@ export default function DashboardPage() {
               <div>
                 <div className="flex items-center gap-4 mb-6">
                   {githubProfile.avatarUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={githubProfile.avatarUrl} alt={githubProfile.login} className="size-12 rounded-full" />
                   )}
                   <div>
@@ -199,21 +255,30 @@ export default function DashboardPage() {
             <RevealText className="text-3xl md:text-4xl font-light tracking-tight">
               Error Clusters
             </RevealText>
-            <a 
-              href="/clusters" 
-              className="text-xs tracking-widest text-black/40 hover:text-black transition-colors"
+            <a
+              href="/clusters"
+              className="flex items-center gap-1 text-xs tracking-widest text-black/40 hover:text-black transition-colors"
             >
-              VIEW ALL →
+              VIEW ALL <ArrowRight className="size-3" />
             </a>
           </div>
-          
+
           {clustersLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="p-4 rounded-xl border border-black/[0.07] bg-white">
-                  <div className="h-4 w-2/3 bg-black/10 animate-pulse mb-2" />
-                  <div className="h-3 w-1/3 bg-black/5 animate-pulse mb-3" />
-                  <div className="h-3 w-1/2 bg-black/5 animate-pulse" />
+                <div key={i} className="p-5 rounded-xl border border-black/[0.07] bg-white" style={{ animationDelay: `${i * 100}ms` }}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-2/3 bg-black/10 animate-pulse" />
+                      <div className="h-3 w-1/3 bg-black/5 animate-pulse" />
+                    </div>
+                    <div className="h-5 w-16 rounded-full bg-black/5 animate-pulse" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {Array.from({ length: 3 }).map((_, j) => (
+                      <div key={j} className="h-3 bg-black/5 animate-pulse rounded" style={{ animationDelay: `${i * 100 + j * 50}ms` }} />
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -223,20 +288,46 @@ export default function DashboardPage() {
                 <div
                   key={cluster.id}
                   onClick={() => router.push(`/clusters/${cluster.id}`)}
-                  className="p-4 rounded-xl border border-black/[0.07] bg-white hover:bg-[#fafaf8] cursor-pointer transition-all hover:border-black/[0.15]"
+                  className="group p-5 rounded-xl border border-black/[0.07] bg-white hover:bg-[#fafaf8] cursor-pointer transition-all hover:border-black/[0.15] hover:shadow-sm"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-light text-sm truncate">{cluster.title}</h3>
-                      <p className="text-xs text-black/40 mt-1">{cluster.service} • {cluster.environment}</p>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="size-4 text-black/30 shrink-0" />
+                        <h3 className="font-light text-sm truncate">{cluster.title}</h3>
+                      </div>
+                      <p className="text-xs text-black/40 mt-1 ml-6">
+                        {cluster.service} · {cluster.environment} · Level: {cluster.level || 'unknown'}
+                      </p>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full font-light ${
-                      cluster.status === 'open' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                    }`}>
-                      {cluster.status}
+                    <div className="flex items-center gap-2 shrink-0 ml-4">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-light tracking-wider uppercase ${STATUS_COLORS[cluster.status] ?? 'bg-black/5 text-black/50'}`}>
+                        {cluster.status}
+                      </span>
+                      <ChevronRight className="size-4 text-black/20 group-hover:text-black/40 transition-colors" />
+                    </div>
+                  </div>
+
+                  {cluster.status === 'open' && cluster.latest_error && (
+                    <div className="mb-3 ml-6 text-xs text-red-600/80 font-mono line-clamp-2 bg-red-50/50 rounded-lg px-3 py-2">
+                      {cluster.latest_error}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-6 ml-6 text-xs text-black/40">
+                    <span className="flex items-center gap-1.5">
+                      <Activity className="size-3" />
+                      {cluster.event_count} event{cluster.event_count !== 1 ? 's' : ''}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="size-3" />
+                      First: {new Date(cluster.first_seen_at).toLocaleDateString()}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="size-3" />
+                      Last: {formatRelativeTime(cluster.last_seen_at)}
                     </span>
                   </div>
-                  <div className="text-xs text-black/30">{cluster.event_count} events • Last seen {new Date(cluster.last_seen_at).toLocaleDateString()}</div>
                 </div>
               ))}
             </div>
@@ -245,7 +336,21 @@ export default function DashboardPage() {
           )}
         </section>
 
-        <DashboardLiveFeed projectId={projectId} />
+        {/* Live Activity */}
+        <section className="mb-16">
+          <div className="flex items-center justify-between mb-8">
+            <RevealText className="text-3xl md:text-4xl font-light tracking-tight">
+              Live Activity
+            </RevealText>
+            <a
+              href="/activity"
+              className="flex items-center gap-1 text-xs tracking-widest text-black/40 hover:text-black transition-colors"
+            >
+              VIEW ALL <ArrowRight className="size-3" />
+            </a>
+          </div>
+          <DashboardLiveFeed projectId={projectId} limit={6} viewAll="/activity" />
+        </section>
 
         {/* Recent Investigations */}
         <section className="mt-16">
@@ -253,23 +358,28 @@ export default function DashboardPage() {
             <RevealText className="text-3xl md:text-4xl font-light tracking-tight">
               Recent Investigations
             </RevealText>
-            <a 
-              href="/investigations" 
-              className="text-xs tracking-widest text-black/40 hover:text-black transition-colors"
+            <a
+              href="/investigations"
+              className="flex items-center gap-1 text-xs tracking-widest text-black/40 hover:text-black transition-colors"
             >
-              VIEW ALL →
+              VIEW ALL <ArrowRight className="size-3" />
             </a>
           </div>
-          
+
           {investigationsLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="p-4 rounded-xl border border-black/[0.07] bg-white">
+                <div key={i} className="p-5 rounded-xl border border-black/[0.07] bg-white" style={{ animationDelay: `${i * 100}ms` }}>
                   <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="h-4 w-1/2 bg-black/10 animate-pulse" />
-                    <div className="h-4 w-20 rounded-full bg-black/5 animate-pulse" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-1/2 bg-black/10 animate-pulse" />
+                      <div className="h-3 w-1/3 bg-black/5 animate-pulse" />
+                    </div>
+                    <div className="h-5 w-20 rounded-full bg-black/5 animate-pulse" />
                   </div>
-                  <div className="h-3 w-1/3 bg-black/5 animate-pulse" />
+                  <div className="h-3 w-full bg-black/5 animate-pulse rounded-full overflow-hidden">
+                    <div className="h-full w-1/2 bg-black/10 animate-pulse" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -279,20 +389,69 @@ export default function DashboardPage() {
                 <div
                   key={inv.id}
                   onClick={() => router.push(`/investigations/${inv.id}`)}
-                  className="p-4 rounded-xl border border-black/[0.07] bg-white hover:bg-[#fafaf8] cursor-pointer transition-all hover:border-black/[0.15]"
+                  className="group p-5 rounded-xl border border-black/[0.07] bg-white hover:bg-[#fafaf8] cursor-pointer transition-all hover:border-black/[0.15] hover:shadow-sm"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-light text-sm">{inv.question}</h3>
-                      <p className="text-xs text-black/40 mt-1">Confidence: {inv.confidence}%</p>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Microscope className="size-4 text-black/30 shrink-0" />
+                        <h3 className="font-light text-sm truncate">{inv.question}</h3>
+                      </div>
+                      {inv.summary && (
+                        <p className="text-xs text-black/40 mt-1 ml-6 line-clamp-2">{inv.summary}</p>
+                      )}
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full font-light ${
-                      inv.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                      inv.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {inv.status}
+                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-light tracking-wider uppercase shrink-0 ml-4 ${STATUS_COLORS[inv.status] ?? 'bg-black/5 text-black/50'}`}>
+                      {inv.status?.replace('_', ' ')}
                     </span>
+                  </div>
+
+                  {inv.status === 'failed' && inv.root_cause && (
+                    <div className="mb-3 ml-6 text-xs text-red-600/80 font-mono line-clamp-2 bg-red-50/50 rounded-lg px-3 py-2">
+                      {inv.root_cause}
+                    </div>
+                  )}
+
+                  {inv.fix_strategy && (
+                    <div className="mb-3 ml-6">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-black/5 text-black/50 tracking-wider uppercase">
+                        {STRATEGY_LABELS[inv.fix_strategy] ?? inv.fix_strategy}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between ml-6">
+                    <div className="flex items-center gap-4 text-xs text-black/40">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="size-3" />
+                        {inv.created_at ? formatRelativeTime(inv.created_at) : 'Unknown'}
+                      </span>
+                      <span>Attempt {inv.attempt || 1} of 3</span>
+                      <span className="flex items-center gap-1.5">
+                        <BarChart3 className="size-3" />
+                        {inv.confidence}% confidence
+                      </span>
+                    </div>
+                    {inv.pr_url && (
+                      <a
+                        href={inv.pr_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline"
+                      >
+                        <GitPullRequest className="size-3" />
+                        PR #{inv.pr_number || '?'}
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Confidence bar */}
+                  <div className="mt-3 ml-6 w-full h-1 bg-black/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-black/20 rounded-full transition-all"
+                      style={{ width: `${inv.confidence || 0}%` }}
+                    />
                   </div>
                 </div>
               ))}
