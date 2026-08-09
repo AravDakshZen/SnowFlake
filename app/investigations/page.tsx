@@ -102,12 +102,17 @@ export default function InvestigationsPage() {
                   <span className={`text-xs px-3 py-1 rounded-full font-light whitespace-nowrap ml-4 ${
                     inv.status === 'completed' ? 'bg-green-100 text-green-700' : 
                     inv.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 
+                    inv.status === 'failed' ? 'bg-red-100 text-red-700' : 
                     'bg-gray-100 text-gray-700'
                   }`}>
                     {inv.status.replace('_', ' ')}
                   </span>
                 </div>
                 
+                {inv.status === 'failed' && inv.root_cause && (
+                  <div className="mb-3 text-xs text-red-600 whitespace-pre-wrap break-words">{inv.root_cause}</div>
+                )}
+
                 <div className="flex items-center justify-between text-xs text-black/40 mb-3">
                   <span>Attempt {inv.attempt} of 3</span>
                   <span>Confidence: {inv.confidence}%</span>

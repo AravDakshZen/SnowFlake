@@ -39,6 +39,8 @@ export default function SettingsPage() {
   const [apiKeyValue, setApiKeyValue] = useState('')
   const [baseUrlValue, setBaseUrlValue] = useState(selectedProviderDefinition?.defaultBaseUrl ?? '')
   const [settingsLoading, setSettingsLoading] = useState(true)
+  const [dynamicModels, setDynamicModels] = useState<any[]>([])
+  const [modelsLoading, setModelsLoading] = useState(false)
 
   const loadSettings = useCallback(async () => {
     try {
@@ -190,7 +192,7 @@ export default function SettingsPage() {
     setApiKeyValue('')
     setBaseUrlValue(config.base_url ?? PROVIDERS[config.provider]?.defaultBaseUrl ?? '')
     setEditingConfigId(config.id)
-    document.getElementById('llm-config-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    fetchDynamicModels(config.provider)
     toastInfo('Editing saved configuration', 'Change the model or paste a new API key. Leave the key blank to keep the saved one.')
   }
 
@@ -200,6 +202,28 @@ export default function SettingsPage() {
     setModelValue(PROVIDERS[provider]?.models[0] ?? '')
     setBaseUrlValue(PROVIDERS[provider]?.defaultBaseUrl ?? '')
     setEditingConfigId(null)
+    fetchDynamicModels(provider)
+  }
+
+  const fetchDynamicModels = async (provider: string) => {
+    setModelsLoading(true)
+    try {
+      const params = new URLSearchParams({ provider })
+      if (apiKeyValue) {
+        params.set('apiKey', apiKeyValue)
+      }
+      const response = await fetch(`/api/settings/models?${params}`)
+      const data = await response.json()
+      if (response.ok && data.models?.length) {
+        setDynamicModels(data.models)
+      } else {
+        setDynamicModels([])
+      }
+    } catch {
+      setDynamicModels([])
+    } finally {
+      setModelsLoading(false)
+    }
   }
 
   const handleLLMSetDefault = async (configId: string) => {
@@ -614,9 +638,43 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-xs tracking-widest text-black/40 mb-2">MODEL</label>
-                <select name="model" value={modelValue} onChange={(e) => setModelValue(e.target.value)} required className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
-                  {selectedProviderDefinition.models.map((model) => <option key={model} value={model}>{model}</option>)}
-                </select>
+                <div className="flex gap-2">
+                  <select 
+                    name="model" 
+                    value={modelValue} 
+                    onChange={(e) => setModelValue(e.target.value)} 
+                    required 
+                    className="flex-1 px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                  >
+                    {modelsLoading ? (
+                      <option value="">Loading models...</option>
+                    ) : dynamicModels.length > 0 ? (
+                      dynamicModels.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.name} {model.isFree ? '🆓 FREE' : ''} {model.contextLength ? `(${Math.round(model.contextLength / 1000)}k)` : ''}
+                        </option>
+                      ))
+                    ) : (
+                      selectedProviderDefinition?.models.map((model) => (
+                        <option key={model} value={model}>{model}</option>
+                      ))
+                    )}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => fetchDynamicModels(selectedProvider)}
+                    disabled={modelsLoading}
+                    className="px-3 py-3 rounded-xl border border-black/[0.07] bg-white text-sm hover:bg-black/5 transition-colors disabled:opacity-50"
+                    title="Refresh models from provider"
+                  >
+                    {modelsLoading ? '...' : '↻'}
+                  </button>
+                </div>
+                {dynamicModels.length > 0 && (
+                  <p className="mt-1.5 text-xs text-black/45">
+                    {dynamicModels.filter(m => m.isFree).length} free models available
+                  </p>
+                )}
               </div>
 
               {selectedProviderDefinition.defaultBaseUrl && <div>
@@ -670,50 +728,136 @@ export default function SettingsPage() {
                   The default provider is preferred when running investigations. Mark one as default, or remove it entirely.
                 </p>
                 <div className="space-y-3">
-                  {llmConfigs.configs.map((config: any) => (
-                    <div key={config.id} className="p-3 rounded-lg bg-black/5">
-                      <div className="flex items-center gap-3">
-                        <ProviderChip providerId={config.provider} size={28} />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <span className="font-medium">{getProviderBrand(config.provider).name}</span>
-                            <span className="text-xs text-black/50">{config.model}</span>
-                            {config.is_default && (
-                              <span className="px-1.5 py-0.5 rounded-full bg-black text-white text-[10px] tracking-widest">DEFAULT</span>
+                  {llmConfigs.configs.map((config: any) => {
+                    const isEditing = editingConfigId === config.id
+                    const providerDef = PROVIDERS[config.provider]
+                    return (
+                      <div key={config.id} className={`p-3 rounded-lg ${isEditing ? 'border border-black/10 bg-white' : 'bg-black/5'}`}>
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <ProviderChip providerId={config.provider} size={24} />
+                              <span className="text-sm font-medium">{getProviderBrand(config.provider).name}</span>
+                              <span className="text-xs text-black/40">— Editing</span>
+                            </div>
+
+                            <div>
+                              <label className="mb-1 block text-[10px] tracking-widest text-black/40">MODEL</label>
+                              <div className="flex gap-2">
+                                <select
+                                  value={modelValue}
+                                  onChange={(e) => setModelValue(e.target.value)}
+                                  className="flex-1 px-3 py-2 rounded-lg border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                                >
+                                  {dynamicModels.length > 0 ? (
+                                    dynamicModels.map((model) => (
+                                      <option key={model.id} value={model.id}>
+                                        {model.name} {model.isFree ? '🆓 FREE' : ''}
+                                      </option>
+                                    ))
+                                  ) : (
+                                    providerDef?.models.map((model) => (
+                                      <option key={model} value={model}>{model}</option>
+                                    ))
+                                  )}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => fetchDynamicModels(config.provider)}
+                                  disabled={modelsLoading}
+                                  className="px-2 py-2 rounded-lg border border-black/[0.07] bg-white text-xs hover:bg-black/5 transition-colors disabled:opacity-50"
+                                >
+                                  {modelsLoading ? '...' : '↻'}
+                                </button>
+                              </div>
+                            </div>
+
+                            {providerDef?.defaultBaseUrl && (
+                              <div>
+                                <label className="mb-1 block text-[10px] tracking-widest text-black/40">BASE URL</label>
+                                <input
+                                  type="url"
+                                  value={baseUrlValue}
+                                  onChange={(e) => setBaseUrlValue(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-lg border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                                />
+                              </div>
                             )}
+
+                            <div>
+                              <label className="mb-1 block text-[10px] tracking-widest text-black/40">API KEY</label>
+                              <input
+                                type="password"
+                                value={apiKeyValue}
+                                onChange={(e) => setApiKeyValue(e.target.value)}
+                                placeholder="Leave blank to keep the saved key"
+                                className="w-full px-3 py-2 rounded-lg border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                              />
+                            </div>
+
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                type="button"
+                                disabled={actionLoading === 'llm'}
+                                onClick={(e) => handleLLMSubmit(e as any)}
+                                className="flex-1 px-4 py-2 rounded-lg bg-black text-white text-xs font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
+                              >
+                                {actionLoading === 'llm' ? 'SAVING…' : 'SAVE CHANGES'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingConfigId(null)}
+                                className="px-4 py-2 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
+                              >
+                                CANCEL
+                              </button>
+                            </div>
                           </div>
-                          {config.maskedKey && <div className="mt-1 font-mono text-xs text-black/40">{config.maskedKey}</div>}
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleLLMEditConfig(config)}
-                            className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
-                          >
-                            EDIT
-                          </button>
-                          {!config.is_default && (
-                            <button
-                              type="button"
-                              disabled={actionLoading === `llm-default-${config.id}`}
-                              onClick={() => handleLLMSetDefault(config.id)}
-                              className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors disabled:opacity-50"
-                            >
-                              {actionLoading === `llm-default-${config.id}` ? 'SETTING…' : 'SET DEFAULT'}
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            disabled={actionLoading === `llm-delete-${config.id}`}
-                            onClick={() => handleLLMDeleteConfig(config.id)}
-                            className="px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-light tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50"
-                          >
-                            {actionLoading === `llm-delete-${config.id}` ? 'REMOVING…' : 'REMOVE'}
-                          </button>
-                        </div>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <ProviderChip providerId={config.provider} size={28} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2 text-sm">
+                                <span className="font-medium">{getProviderBrand(config.provider).name}</span>
+                                <span className="text-xs text-black/50">{config.model}</span>
+                                {config.is_default && (
+                                  <span className="px-1.5 py-0.5 rounded-full bg-black text-white text-[10px] tracking-widest">DEFAULT</span>
+                                )}
+                              </div>
+                              {config.maskedKey && <div className="mt-1 font-mono text-xs text-black/40">{config.maskedKey}</div>}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleLLMEditConfig(config)}
+                                className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors"
+                              >
+                                EDIT
+                              </button>
+                              {!config.is_default && (
+                                <button
+                                  type="button"
+                                  disabled={actionLoading === `llm-default-${config.id}`}
+                                  onClick={() => handleLLMSetDefault(config.id)}
+                                  className="px-3 py-1.5 rounded-lg border border-black/10 text-xs font-light tracking-widest hover:bg-black/5 transition-colors disabled:opacity-50"
+                                >
+                                  {actionLoading === `llm-default-${config.id}` ? 'SETTING…' : 'SET DEFAULT'}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={actionLoading === `llm-delete-${config.id}`}
+                                onClick={() => handleLLMDeleteConfig(config.id)}
+                                className="px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-light tracking-widest hover:bg-red-50 transition-colors disabled:opacity-50"
+                              >
+                                {actionLoading === `llm-delete-${config.id}` ? 'REMOVING…' : 'REMOVE'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             ) : null}

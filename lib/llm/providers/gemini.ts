@@ -71,6 +71,16 @@ export class GeminiProvider implements LLMProvider {
         );
       }
 
+      // Check for Google-specific auth errors that might not match standard patterns
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('oauth') || msg.includes('OAuth') || msg.includes('credentials')) {
+        throw new Error(
+          `Gemini API key is invalid or expired. ` +
+          `Update your Google AI API key in Settings > LLM Providers. ` +
+          `Get a free key at https://aistudio.google.com/apikey`
+        );
+      }
+
       throw new Error(`Gemini analysis failed: ${classified.message}`);
     }
   }

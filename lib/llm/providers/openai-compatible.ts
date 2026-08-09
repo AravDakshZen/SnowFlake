@@ -70,7 +70,13 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
       if (!response.ok) {
         const body = await response.text().catch(() => '')
-        throw new Error(`${response.status}: ${body.slice(0, 300)}`)
+        throw new Error(`${response.status}: ${body.slice(0, 500)}`)
+      }
+
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        const body = await response.text().catch(() => '')
+        throw new Error(`Non-JSON response (${contentType}): ${body.slice(0, 500)}`)
       }
 
       const data = await response.json()
@@ -102,6 +108,14 @@ export class OpenAICompatibleProvider implements LLMProvider {
         throw new Error(
           `${provider} model "${this.model}" not found. ` +
           `It may have been renamed or deprecated. Check available models.`
+        )
+      }
+
+      const msg = error instanceof Error ? error.message : String(error)
+      if (msg.includes('404') || msg.includes('not found')) {
+        throw new Error(
+          `${provider} model "${this.model}" not found (404). ` +
+          `Check available models in Settings > LLM Providers.`
         )
       }
 

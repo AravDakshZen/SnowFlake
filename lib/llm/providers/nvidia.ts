@@ -131,7 +131,6 @@ export class NvidiaProvider implements LLMProvider {
   }
 
   private async runAnalysis(stackTrace: string, sourceCode: Record<string, string>, attempt: number): Promise<AnalysisResult> {
-    // Progressively reduce max_tokens on retries to avoid context overflow
     const baseMaxTokens = 4096
     const maxTokens = attempt === 0
       ? getModelMaxTokens(this.model, baseMaxTokens)
@@ -159,7 +158,13 @@ export class NvidiaProvider implements LLMProvider {
 
     if (!response.ok) {
       const body = await response.text().catch(() => '')
-      throw new Error(`NVIDIA returned ${response.status}: ${body.slice(0, 300)}`)
+      throw new Error(`NVIDIA returned ${response.status}: ${body.slice(0, 500)}`)
+    }
+
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      const body = await response.text().catch(() => '')
+      throw new Error(`NVIDIA returned non-JSON response (${contentType}): ${body.slice(0, 500)}`)
     }
 
     const data = await response.json()

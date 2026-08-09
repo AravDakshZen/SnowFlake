@@ -10,6 +10,7 @@ export default function ClusterDetailPage() {
   const id = params.id as string
   const [cluster, setCluster] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isInvestigating, setIsInvestigating] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -84,6 +85,16 @@ export default function ClusterDetailPage() {
           </p>
         </section>
 
+        {/* Latest Error */}
+        {clusterData.status === 'open' && clusterData.latest_error && (
+          <section className="mb-12">
+            <h2 className="text-xl font-light tracking-tight mb-4">Latest Error</h2>
+            <div className="p-6 rounded-2xl border border-red-200 bg-red-50">
+              <p className="text-sm leading-relaxed text-red-900 font-mono">{clusterData.latest_error}</p>
+            </div>
+          </section>
+        )}
+
         {/* Metrics Grid */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
           {[
@@ -111,6 +122,7 @@ export default function ClusterDetailPage() {
         <section>
           <button
             onClick={async () => {
+              setIsInvestigating(true)
               const loadingId = toastLoading('Starting investigation…', 'Queuing the analysis pipeline.')
               try {
                 const response = await fetch('/api/investigations', {
@@ -128,12 +140,14 @@ export default function ClusterDetailPage() {
                 router.push('/investigations')
               } catch (error) {
                 dismissToast(loadingId)
+                setIsInvestigating(false)
                 toastError('Could not start investigation', error instanceof Error ? error.message : 'Please try again.')
               }
             }}
-            className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors"
+            disabled={isInvestigating}
+            className="w-full px-6 py-3 rounded-xl bg-black text-white text-sm font-light tracking-widest hover:bg-black/85 transition-colors disabled:opacity-50"
           >
-            START INVESTIGATION
+            {isInvestigating ? 'STARTING…' : 'START INVESTIGATION'}
           </button>
         </section>
       </main>
