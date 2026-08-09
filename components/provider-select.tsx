@@ -105,7 +105,7 @@ export function ProviderSelect({ providers, value, onChange, className = '' }: P
   )
 }
 
-function ProviderLogo({ providerId, size = 24 }: { providerId: string; size?: number }) {
+export function ProviderLogo({ providerId, size = 24 }: { providerId: string; size?: number }) {
   const logoSrc = PROVIDER_LOGOS[providerId]
   
   if (logoSrc) {
@@ -121,7 +121,6 @@ function ProviderLogo({ providerId, size = 24 }: { providerId: string; size?: nu
     )
   }
 
-  // Fallback to colored circle with first letter
   const colors: Record<string, string> = {
     openai: 'bg-[#10a37f]',
     anthropic: 'bg-[#d97757]',

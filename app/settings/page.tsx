@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
 import { ProviderChip, getProviderBrand } from '@/components/provider-icons'
-import { ProviderSelect } from '@/components/provider-select'
+import { ProviderSelect, ProviderLogo } from '@/components/provider-select'
 import { PROVIDERS } from '@/lib/llm'
 import { toastSuccess, toastError, toastInfo, toastLoading } from '@/lib/toasts'
 import { Button } from '@/components/ui/button'
@@ -758,7 +758,7 @@ export default function SettingsPage() {
                         {isEditing ? (
                           <div className="space-y-3">
                             <div className="flex items-center gap-2 mb-2">
-                              <ProviderChip providerId={config.provider} size={24} />
+                              <ProviderLogo providerId={config.provider} size={24} />
                               <span className="text-sm font-medium">{getProviderBrand(config.provider).name}</span>
                               <span className="text-xs text-black/40">— Editing</span>
                             </div>
@@ -839,7 +839,7 @@ export default function SettingsPage() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-3">
-                            <ProviderChip providerId={config.provider} size={28} />
+                            <ProviderLogo providerId={config.provider} size={28} />
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2 text-sm">
                                 <span className="font-medium">{getProviderBrand(config.provider).name}</span>
