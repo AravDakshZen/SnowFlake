@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { decryptValue } from '@/lib/encryption';
 import { GitHubClient } from '@/lib/github';
 import { logAudit } from '@/lib/audit';
+import { applyUnifiedPatch, looksLikeCode, extractPatchChanges } from '@/lib/apply-patch';
 
 export async function POST(request: NextRequest) {
   try {
@@ -95,8 +96,17 @@ export async function POST(request: NextRequest) {
         console.log(`[v0] Could not fetch file ${inv.affected_file}, will create new`);
       }
 
-      // Apply patch or use suggested fix
-      const fixedContent = currentContent + '\n\n// Snowflake fix applied\n' + inv.patch_diff;
+      // Apply the real LLM-generated patch when it is a workable unified diff;
+      // otherwise fall back to appending the patch only if it looks like code.
+      const fixedContent = applyUnifiedPatch(currentContent, inv.patch_diff)
+        ?? (looksLikeCode(inv.patch_diff) ? currentContent + '\n\n// Snowflake fix applied\n' + inv.patch_diff : null);
+
+      if (!fixedContent) {
+        return NextResponse.json(
+          { error: 'Unable to apply the generated patch to ' + inv.affected_file },
+          { status: 422 }
+        );
+      }
 
       // Commit the fix
       await github.commitFile(
@@ -107,6 +117,10 @@ export async function POST(request: NextRequest) {
       );
 
       // Create PR
+      const patchChanges = extractPatchChanges(inv.patch_diff).map(
+        (line, index) => `${index + 1}. \`${line}\``
+      ).join('\n');
+
       const prBody = `## Error Fix Report
 
 ### Root Cause
@@ -117,6 +131,9 @@ ${inv.root_cause}
 
 ### Fix Strategy
 ${inv.fix_strategy ?? 'refactor'}
+
+### Changes
+${patchChanges || '1. Applied fix to ' + inv.affected_file}
 
 ### Explanation
 ${inv.explanation}

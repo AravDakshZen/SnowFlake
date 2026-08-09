@@ -45,7 +45,14 @@ export async function GET(request: NextRequest) {
         c.first_seen_at,
         c.last_seen_at,
         COUNT(al.id) as log_count,
-        COUNT(DISTINCT i.id) as investigation_count
+        COUNT(DISTINCT i.id) as investigation_count,
+        (
+          SELECT i2.root_cause
+          FROM public.investigations i2
+          WHERE i2.cluster_id = c.id AND i2.status = 'failed'
+          ORDER BY i2.created_at DESC
+          LIMIT 1
+        ) as latest_error
       FROM public.clusters c
       LEFT JOIN public.api_logs al ON c.id = al.cluster_id
       LEFT JOIN public.investigations i ON c.id = i.cluster_id

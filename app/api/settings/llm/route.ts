@@ -55,8 +55,9 @@ export async function POST(request: NextRequest) {
       latencyMs = Date.now() - startTime;
     } catch (error) {
       console.error('[v0] LLM connection test failed:', error);
+      const detail = error instanceof Error ? error.message : 'Unknown error';
       return NextResponse.json(
-        { error: 'Failed to connect to LLM provider' },
+        { error: 'Failed to connect to LLM provider', detail: detail.slice(0, 300) },
         { status: 400 }
       );
     }

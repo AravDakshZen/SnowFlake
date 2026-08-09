@@ -92,6 +92,7 @@ export default function InvestigationDetailPage() {
           <span className={`text-xs px-3 py-1 rounded-full font-light ${
             inv.status === 'completed' ? 'bg-green-100 text-green-700' : 
             inv.status === 'in_progress' ? 'bg-blue-100 text-blue-700' : 
+            inv.status === 'failed' ? 'bg-red-100 text-red-700' : 
             'bg-gray-100 text-gray-700'
           }`}>
             {inv.status.replace('_', ' ')}
@@ -134,19 +135,24 @@ export default function InvestigationDetailPage() {
           </section>
         )}
 
-        {/* Completed without a usable fix */}
-        {inv.status === 'completed' && !inv.patch_diff && !inv.pr_url && (
+        {(inv.status === 'completed' && !inv.patch_diff && !inv.pr_url) || inv.status === 'failed' ? (
           <section className="mb-12">
             <h2 className="text-xl font-light tracking-tight mb-4">Fix Details</h2>
-            <div className="p-6 rounded-2xl border border-amber-200 bg-amber-50">
-              <p className="text-sm leading-relaxed text-amber-900">
-                This investigation completed, but no patch was generated and no pull request was created.
-                The analysis below may still explain the issue; you can restart the investigation or connect
-                GitHub to enable automatic fixes.
-              </p>
+            <div className={`p-6 rounded-2xl border ${inv.status === 'failed' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>
+              {inv.status === 'failed' ? (
+                <p className="text-sm leading-relaxed text-red-900">
+                  This investigation failed. {inv.root_cause ? 'The captured error is below — you can retry the analysis or start a new investigation.' : 'No fix was generated. You can retry the analysis or start a new investigation.'}
+                </p>
+              ) : (
+                <p className="text-sm leading-relaxed text-amber-900">
+                  This investigation completed, but no patch was generated and no pull request was created.
+                  The analysis below may still explain the issue; you can restart the investigation or connect
+                  GitHub to enable automatic fixes.
+                </p>
+              )}
             </div>
           </section>
-        )}
+        ) : null}
 
         {/* Root Cause */}
         {inv.root_cause && (

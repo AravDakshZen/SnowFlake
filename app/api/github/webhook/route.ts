@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '@/lib/db';
-import { queueInvestigation } from '@/lib/queue';
+import { queueInvestigation, queueEventAnalysis } from '@/lib/queue';
 import { emitToProject } from '@/lib/socket';
 import { logAudit } from '@/lib/audit';
 import { sendEscalationAlert } from '@/lib/alerts';
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     if (eventType === 'workflow_run') {
       await handleWorkflowRun(payload);
     } else if (eventType === 'push') {
-      console.log('[v0] Push event received:', payload.repository?.full_name);
+      await handlePush(payload);
     }
 
     return NextResponse.json({ success: true });
@@ -39,6 +39,54 @@ function extractInvestigationPrefix(branch: string): string | null {
   // Branch format: snowflake/fix-<8hex>-<timestamp> (see worker + PR route)
   const match = branch.match(/^(?:snowflake|tracewise)\/fix-([a-f0-9]{1,8})(?:-|$)/);
   return match?.[1] ?? null;
+}
+
+async function handlePush(payload: any) {
+  try {
+    const repository = payload?.repository;
+    if (!repository?.full_name) {
+      return;
+    }
+    const [owner, name] = repository.full_name.split('/');
+
+    const branch = (payload?.ref ?? '').replace(/^refs\/heads\//, '');
+    const headSha = payload?.after;
+
+    // Skip deletions / force-push-to-empty: GitHub reports an all-zero SHA
+    if (!headSha || /^0+$/.test(String(headSha))) {
+      console.log('[v0] Push event has no target commit, ignoring');
+      return;
+    }
+
+    const sql = getSql();
+
+    const events = await sql`
+      SELECT id, project_id, default_branch, last_commit_sha
+      FROM public.automation_events
+      WHERE repo_owner = ${owner} AND repo_name = ${name}
+    `;
+
+    for (const event of events) {
+      if (event.default_branch !== branch) continue;
+      if (event.last_commit_sha === headSha) continue;
+
+      // Reset the anchor and status so the worker picks this up like a
+      // manual re-trigger: it diffs against last_commit_sha on next poll.
+      await sql`
+        UPDATE public.automation_events
+        SET last_commit_sha = ${headSha},
+            status = 'idle',
+            error = NULL,
+            last_run_at = NOW()
+        WHERE id = ${event.id}
+      `;
+
+      ensureWorkerRegistered();
+      await queueEventAnalysis({ projectId: event.project_id, eventId: event.id });
+    }
+  } catch (error) {
+    console.error('[v0] Error handling push event:', error);
+  }
 }
 
 async function handleWorkflowRun(payload: any) {

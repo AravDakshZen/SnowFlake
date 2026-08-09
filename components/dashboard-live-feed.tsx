@@ -74,7 +74,7 @@ function feedHref(event: FeedEvent): string | null {
   return null
 }
 
-export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
+export function DashboardLiveFeed({ projectId, limit = 12, viewAll }: { projectId?: string; limit?: number; viewAll?: string }) {
   const [events, setEvents] = useState<FeedEvent[]>([])
   const [connected, setConnected] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -88,14 +88,14 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
 
     let cancelled = false
 
-    fetch(`/api/audit?projectId=${encodeURIComponent(projectId)}&limit=12`)
+    fetch(`/api/audit?projectId=${encodeURIComponent(projectId)}&limit=${Math.max(limit, 12)}`)
       .then((res) => res.json())
       .then((data) => {
         if (cancelled) return
         const history = Array.isArray(data.logs)
           ? (data.logs as AuditLog[]).map(auditToFeedEvent).filter((e): e is FeedEvent => e !== null)
           : []
-        if (history.length) setEvents((current) => [...history, ...current].slice(-24))
+        if (history.length) setEvents((current) => [...history, ...current].slice(-Math.max(limit, 12)))
       })
       .catch(() => {})
       .finally(() => {
@@ -107,7 +107,7 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
     source.onmessage = (event) => {
       try {
         const next = JSON.parse(event.data) as FeedEvent
-        if (next.type !== 'heartbeat') setEvents((current) => [...current, next].slice(-12))
+        if (next.type !== 'heartbeat') setEvents((current) => [...current, next].slice(-Math.max(limit, 12)))
 
         const eventId = (next.id as string | undefined) ?? `${next.type}-${next.timestamp ?? Date.now()}`
         if (toastedIds.current.has(eventId)) return
@@ -147,7 +147,10 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
     <section className="border-t border-black/10 pt-6">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div><p className="text-xs tracking-[0.18em] text-black/45">LIVE ACTIVITY</p><h2 className="mt-1 text-xl font-medium tracking-tight">Investigation feed</h2></div>
-        <div className="flex items-center gap-2 text-xs text-black/45"><span className={`size-2 rounded-full ${active ? 'animate-pulse bg-amber-500' : connected ? 'bg-emerald-500' : 'bg-black/20'}`} />{connected ? 'Connected' : 'Waiting'}</div>
+        <div className="flex items-center gap-4 text-xs text-black/45">
+          {viewAll && <a href={viewAll} className="tracking-widest text-black/40 hover:text-black transition-colors">VIEW ALL →</a>}
+          <div className="flex items-center gap-2"><span className={`size-2 rounded-full ${active ? 'animate-pulse bg-amber-500' : connected ? 'bg-emerald-500' : 'bg-black/20'}`} />{connected ? 'Connected' : 'Waiting'}</div>
+        </div>
       </div>
       <div className="flex max-h-72 flex-col gap-2 overflow-auto rounded-2xl border border-black/10 bg-white p-3">
         {loading ? (
@@ -162,7 +165,7 @@ export function DashboardLiveFeed({ projectId }: { projectId?: string }) {
               </div>
             ))}
           </div>
-        ) : events.length === 0 ? <p className="px-3 py-8 text-center text-sm text-black/40">Live investigation events will appear here.</p> : events.slice().reverse().map((event, index) => {
+        ) : events.length === 0 ? <p className="px-3 py-8 text-center text-sm text-black/40">Live investigation events will appear here.</p> : events.slice(-limit).reverse().map((event, index) => {
           const tone = event.type.includes('escalated') ? 'text-red-600' : event.type.includes('complete') || event.type.includes('created') ? 'text-emerald-600' : event.type.includes('progress') || event.type.includes('queued') || event.type.includes('started') ? 'text-amber-600' : event.type.includes('failed') ? 'text-red-600' : 'text-sky-600'
           const href = feedHref(event)
           const inner = (

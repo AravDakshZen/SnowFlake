@@ -8,6 +8,7 @@ export interface InvestigationJob {
   parentInvestigationId?: string
   attempt?: number
   eventId?: string
+  question?: string
 }
 
 export interface QueueJob<T> {
@@ -124,7 +125,7 @@ export async function queueInvestigation(job: InvestigationJob): Promise<QueueEn
           ${job.clusterId ?? null},
           ${job.logId},
           ${job.parentInvestigationId ?? null},
-          ${log?.endpoint ?? 'Unknown error'},
+          ${job.question ?? log?.endpoint ?? 'Unknown error'},
           'queued',
           ${job.attempt ?? 1}
         )

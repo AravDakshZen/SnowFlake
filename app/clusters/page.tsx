@@ -120,6 +120,10 @@ export default function ClustersPage() {
                   </span>
                 </div>
                 
+                {cluster.status === 'open' && cluster.latest_error && (
+                  <div className="mb-4 text-xs text-red-600 line-clamp-2">{cluster.latest_error}</div>
+                )}
+
                 <div className="grid grid-cols-3 gap-4 text-xs">
                   <div>
                     <span className="text-black/40">Events</span>
