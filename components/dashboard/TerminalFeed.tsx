@@ -190,6 +190,8 @@ function auditToFeedEvent(log: AuditLog): FeedEvent | null {
   }
 }
 
+const STORAGE_KEY = 'snowflake-terminal-lines'
+
 export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; limit?: number }) {
   const [lines, setLines] = useState<TerminalLine[]>([])
   const [connected, setConnected] = useState(false)
@@ -197,6 +199,7 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
   const [activeInvestigation, setActiveInvestigation] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
+  const linesRef = useRef<TerminalLine[]>([])
 
   const scrollToBottom = useCallback(() => {
     if (viewportRef.current) {
@@ -204,44 +207,69 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
     }
   }, [])
 
-  useEffect(() => {
-    if (!projectId) { setLoading(false); return }
-    let cancelled = false
+  // Persist lines to localStorage
+  const persistLines = useCallback((newLines: TerminalLine[]) => {
+    linesRef.current = newLines
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newLines.slice(-limit)))
+    } catch {}
+  }, [limit])
 
-    fetch(`/api/audit?projectId=${encodeURIComponent(projectId)}&limit=${Math.max(limit, 12)}`)
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return
-        const history = Array.isArray(data.logs)
-          ? (data.logs as AuditLog[]).map(auditToFeedEvent).filter((e): e is FeedEvent => e !== null)
-          : []
-        if (history.length) {
-          const newLines = history.flatMap(mapEventToLines).slice(-limit)
-          setLines(newLines)
+  // Restore lines from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) {
+        const parsed = JSON.parse(stored) as TerminalLine[]
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLines(parsed)
+          linesRef.current = parsed
         }
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false) })
+      }
+    } catch {}
+    setLoading(false)
+  }, [])
+
+  // SSE stream for live events
+  useEffect(() => {
+    if (!projectId) return
+    let cancelled = false
 
     const source = new EventSource(`/api/logs/stream?projectId=${encodeURIComponent(projectId)}`)
     source.onopen = () => setConnected(true)
     source.onmessage = (event) => {
       try {
-        const next = JSON.parse(event.data) as FeedEvent
-        if (next.type === 'heartbeat') return
+        const raw = JSON.parse(event.data) as Record<string, unknown>
+        if (raw.type === 'heartbeat') return
+        
+        // Flatten nested data property from events
+        const next: FeedEvent = {
+          type: raw.type as string,
+          timestamp: raw.timestamp as string,
+          ...(typeof raw.data === 'object' && raw.data !== null ? raw.data as Record<string, unknown> : raw),
+        }
+        
         if (next.type === 'investigation:queued') setActiveInvestigation(true)
         if (next.type === 'investigation:complete' || next.type === 'alert:escalated') setActiveInvestigation(false)
         const newLines = mapEventToLines(next)
-        setLines(prev => [...prev, ...newLines].slice(-limit))
+        setLines(prev => {
+          const updated = [...prev, ...newLines].slice(-limit)
+          persistLines(updated)
+          return updated
+        })
       } catch {}
     }
     source.onerror = () => setConnected(false)
     return () => { cancelled = true; source.close() }
-  }, [projectId, limit])
+  }, [projectId, limit, persistLines])
 
   useEffect(() => { scrollToBottom() }, [lines, scrollToBottom])
 
-  const handleClear = () => setLines([])
+  const handleClear = () => {
+    setLines([])
+    linesRef.current = []
+    try { localStorage.removeItem(STORAGE_KEY) } catch {}
+  }
   const handleCopy = () => {
     const text = lines.map(l => `[${l.timestamp}] [${l.tag}] ${l.message}`).join('\n')
     navigator.clipboard.writeText(text).catch(() => {})

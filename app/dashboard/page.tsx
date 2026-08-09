@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { RevealText } from '@/components/reveal-text'
@@ -76,6 +76,23 @@ export default function DashboardPage() {
   const [investigationsLoading, setInvestigationsLoading] = useState(true)
   const [projectId, setProjectId] = useState<string>()
 
+  const fetchDashboardData = useCallback(async (id: string) => {
+    const query = `?projectId=${encodeURIComponent(id)}`
+    Promise.allSettled([
+      fetch(`/api/stats${query}`).then(r => r.json()),
+      fetch(`/api/clusters${query}`).then(r => r.json()),
+      fetch(`/api/investigations${query}`).then(r => r.json()),
+    ]).then(([statsResult, clustersResult, invResult]) => {
+      if (statsResult.status === 'fulfilled') setStats(statsResult.value)
+      if (clustersResult.status === 'fulfilled') setClusters(clustersResult.value)
+      if (invResult.status === 'fulfilled') setInvestigations(invResult.value)
+    }).finally(() => {
+      setStatsLoading(false)
+      setClustersLoading(false)
+      setInvestigationsLoading(false)
+    })
+  }, [])
+
   useEffect(() => {
     setMounted(true)
     document.title = 'Snowflake — Dashboard'
@@ -91,20 +108,7 @@ export default function DashboardPage() {
           setInvestigationsLoading(false)
           return
         }
-        const query = `?projectId=${encodeURIComponent(id)}`
-        Promise.allSettled([
-          fetch(`/api/stats${query}`).then(r => r.json()),
-          fetch(`/api/clusters${query}`).then(r => r.json()),
-          fetch(`/api/investigations${query}`).then(r => r.json()),
-        ]).then(([statsResult, clustersResult, invResult]) => {
-          if (statsResult.status === 'fulfilled') setStats(statsResult.value)
-          if (clustersResult.status === 'fulfilled') setClusters(clustersResult.value)
-          if (invResult.status === 'fulfilled') setInvestigations(invResult.value)
-        }).finally(() => {
-          setStatsLoading(false)
-          setClustersLoading(false)
-          setInvestigationsLoading(false)
-        })
+        fetchDashboardData(id)
       })
       .catch(() => {
         setStatsLoading(false)
@@ -112,7 +116,21 @@ export default function DashboardPage() {
         setInvestigationsLoading(false)
         toastError('Dashboard could not load', 'Please check your connection and try again.')
       })
-  }, [])
+  }, [fetchDashboardData])
+
+  useEffect(() => {
+    if (!projectId) return
+    const source = new EventSource(`/api/logs/stream?projectId=${encodeURIComponent(projectId)}`)
+    source.onmessage = (event) => {
+      try {
+        const raw = JSON.parse(event.data) as Record<string, unknown>
+        if (raw.type === 'investigation:complete' || raw.type === 'event:completed' || raw.type === 'pr:created') {
+          fetchDashboardData(projectId)
+        }
+      } catch {}
+    }
+    return () => source.close()
+  }, [projectId, fetchDashboardData])
 
   const handleInvestigate = async (clusterId: string) => {
     if (!projectId) return
@@ -120,12 +138,21 @@ export default function DashboardPage() {
       const res = await fetch('/api/investigations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cluster_id: clusterId }),
+        body: JSON.stringify({ cluster_id: clusterId, project_id: projectId }),
       })
+      const data = await res.json()
       if (res.ok) {
-        toastError('Investigation queued', 'The investigation will start shortly.')
+        const { toastSuccess } = await import('@/lib/toasts')
+        toastSuccess('Investigation queued', 'The investigation will start shortly.')
+        const invRes = await fetch(`/api/investigations?projectId=${encodeURIComponent(projectId)}`)
+        const invData = await invRes.json()
+        setInvestigations(invData)
+      } else {
+        toastError('Failed to queue investigation', data.error || 'Please try again.')
       }
-    } catch {}
+    } catch (err) {
+      toastError('Failed to queue investigation', 'Network error. Please try again.')
+    }
   }
 
   if (!mounted) return null

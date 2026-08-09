@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation'
 import { RevealText } from '@/components/reveal-text'
 import { PixelIcon } from '@/components/pixel-icon'
 import { ProviderChip, getProviderBrand } from '@/components/provider-icons'
+import { ProviderSelect } from '@/components/provider-select'
 import { PROVIDERS } from '@/lib/llm'
 import { toastSuccess, toastError, toastInfo, toastLoading } from '@/lib/toasts'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, LogOut, CheckCircle2, XCircle } from 'lucide-react'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -624,20 +625,22 @@ export default function SettingsPage() {
             <form id="llm-config-form" onSubmit={handleLLMSubmit} className="space-y-6">
               <div>
                 <label className="mb-2 block text-xs tracking-widest text-black/40">PROVIDER</label>
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <select name="provider" value={selectedProvider} onChange={handleProviderChange} required className="w-full pl-10 pr-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20">
-                      {Object.values(PROVIDERS).map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name}{provider.isFree ? ' (FREE)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <ProviderChip providerId={selectedProvider} size={20} />
-                    </div>
-                  </div>
-                </div>
+                <ProviderSelect
+                  providers={Object.values(PROVIDERS).map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    description: p.description,
+                    isFree: p.isFree,
+                  }))}
+                  value={selectedProvider}
+                  onChange={(val) => {
+                    setSelectedProvider(val)
+                    setModelValue(PROVIDERS[val]?.models[0] ?? '')
+                    setBaseUrlValue(PROVIDERS[val]?.defaultBaseUrl ?? '')
+                    setEditingConfigId(null)
+                    fetchDynamicModels(val)
+                  }}
+                />
                 {selectedProviderDefinition.isFree && (
                   <Badge variant="secondary" className="mt-2 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
                     <span className="size-1.5 rounded-full bg-emerald-500" />
@@ -926,15 +929,18 @@ export default function SettingsPage() {
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="px-3 py-1.5 rounded-lg bg-green-100 text-green-700 text-xs font-light tracking-widest">CONNECTED</span>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-50 border border-green-200">
+                      <CheckCircle2 className="size-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-700">Connected</span>
+                    </div>
                     <button
                       type="button"
                       disabled={actionLoading === 'github'}
                       onClick={handleGitHubDisconnect}
-                      className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-red-900/20 bg-red-50 text-red-800 text-sm font-light tracking-widest hover:bg-red-100 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-red-200 bg-white text-red-600 text-sm font-medium hover:bg-red-50 hover:border-red-300 transition-all disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
                     >
-                      <svg viewBox="0 0 16 16" className="size-4 fill-current" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-                      {actionLoading === 'github' ? 'DISCONNECTING…' : 'LOGOUT FROM THIS ACCOUNT'}
+                      <LogOut className="size-4" />
+                      {actionLoading === 'github' ? 'Disconnecting…' : 'Disconnect GitHub'}
                     </button>
                   </div>
                 </div>
