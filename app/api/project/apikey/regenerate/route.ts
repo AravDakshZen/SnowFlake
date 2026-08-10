@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate new API key
-    const newKey = `tw_live_${crypto.randomBytes(32).toString('hex')}`
+    const newKey = `snow_live_${crypto.randomBytes(32).toString('hex')}`
     const newKeyHash = crypto.createHash('sha256').update(newKey).digest('hex')
     const maskedKey = `${newKey.substring(0, 10)}...${newKey.substring(newKey.length - 4)}`
 

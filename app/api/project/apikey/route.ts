@@ -7,7 +7,7 @@ type Sql = ReturnType<typeof getSql>;
 
 function generateApiKey(): string {
   const random = crypto.randomBytes(32).toString('hex');
-  return `sf_live_${random}`;
+  return `snow_live_${random}`;
 }
 
 function maskApiKey(apiKey: string): string {

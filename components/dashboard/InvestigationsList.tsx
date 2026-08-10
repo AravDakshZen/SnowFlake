@@ -371,20 +371,7 @@ export function InvestigationsList({ investigations, loading, projectId }: { inv
         <p className="text-sm text-black/40 mb-4 max-w-sm mx-auto">
           Send your first error log and Snowflake will automatically analyze and fix it.
         </p>
-        <div className="bg-[#1a1a2e] rounded-lg p-4 max-w-md mx-auto text-left">
-          <pre className="text-xs text-emerald-400/80 font-[family-name:var(--font-mono)]">
-{`curl -X POST https://snowflakedoitforyou.vercel.app/api/logs \\
-  -H "Authorization: Bearer sf_live_..." \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "endpoint": "/api/checkout",
-    "method": "POST",
-    "statusCode": 500,
-    "stackTrace": "TypeError: Cannot read...",
-    "projectId": "YOUR_PROJECT_ID"
-  }'`}
-          </pre>
-        </div>
+
       </div>
     )
   }

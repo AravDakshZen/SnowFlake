@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth'
 import { getSql } from '@/lib/db'
 
 function createApiKey() {
-  const value = `tw_live_${crypto.randomBytes(24).toString('hex')}`
+  const value = `snow_live_${crypto.randomBytes(24).toString('hex')}`
   return { value, hash: crypto.createHash('sha256').update(value).digest('hex') }
 }
 
