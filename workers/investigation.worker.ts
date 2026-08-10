@@ -1,20 +1,17 @@
 import { getSql } from '@/lib/db';
-import { getLLMProvider, type AnalysisResult } from '@/lib/llm';
+import { type AnalysisResult } from '@/lib/llm';
 import { decryptValue } from '@/lib/encryption';
 import { GitHubClient } from '@/lib/github';
 import { generateCommitMessage } from '@/lib/github/commitMessage';
-import { applyUnifiedPatch, looksLikeCode, extractPatchChanges } from '@/lib/apply-patch';
+import { applyUnifiedPatch } from '@/lib/apply-patch';
 import { sendSlackAlert, sendEmailAlert, sendEscalationAlert } from '@/lib/alerts';
 import type { InvestigationJob } from '@/lib/queue';
 import { emitToProject } from '@/lib/socket';
 import { logAudit } from '@/lib/audit';
 import { resolveAppUrl } from '@/lib/config';
-import { generatePRBody, type FilePRInput } from '@/lib/github/prBody';
+import { generatePRBody } from '@/lib/github/prBody';
 import { generateMultiFileCommitTitle } from '@/lib/github/commitMessage';
 import { cleanFiles, type CleanerResult } from '@/lib/engine/cleaner';
-import { getSelectedCategories, getCategoryById } from '@/types/event';
-import type { FileCleanResult, ModelsUsed } from '@/types/investigation';
-import { createPatch } from 'diff';
 
 const APP_URL = resolveAppUrl();
 
@@ -135,6 +132,7 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
 
     // Fetch files from GitHub if available
     let sourceFiles: Record<string, string> = {};
+    let fileSHAs: Record<string, string> = {};
     if (gitHubConfig.length > 0) {
       const ghConfig = gitHubConfig[0];
       const token = decryptValue(ghConfig.encrypted_token);
@@ -148,10 +146,16 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           if (seen.has(filePath)) continue;
           seen.add(filePath);
           try {
-            const file = await github.getFile(filePath, ghConfig.default_branch);
-            sourceFiles[file.path] = file.content;
+            const fileWithSHA = await github.getFileWithSHA(filePath, ghConfig.default_branch);
+            sourceFiles[fileWithSHA.path] = fileWithSHA.content;
+            fileSHAs[fileWithSHA.path] = fileWithSHA.sha;
           } catch {
-            // File not found, skip
+            try {
+              const file = await github.getFile(filePath, ghConfig.default_branch);
+              sourceFiles[file.path] = file.content;
+            } catch {
+              // File not found, skip
+            }
           }
         }
       } catch (error) {
@@ -174,19 +178,31 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
       );
     }
 
-    // Run LLM analysis
-    const provider = await getLLMProvider(
-      config.provider,
-      decryptedKey,
-      config.model,
-      config.base_url
-    );
+    const categoryIds = ['critical_errors', 'security', 'logic_errors', 'code_quality', 'style_cleanup'];
 
-    const analysis = await provider.analyze(
-      log.stack_trace,
+    const cleanerResult = await cleanFiles({
       sourceFiles,
-      previousAttempts.length > 0 ? previousAttempts : undefined
-    );
+      fileSHAs,
+      categoryIds,
+      provider: config.provider,
+      apiKey: decryptedKey,
+      model: config.model,
+      baseUrl: config.base_url ?? undefined,
+      stackTrace: log.stack_trace,
+      previousAttempts: previousAttempts.length > 0 ? previousAttempts : undefined,
+      emitEvent: (type, data) => emitToProject(log.project_id, type, data),
+    });
+
+    const analysis: AnalysisResult = {
+      rootCause: cleanerResult.confidenceReasoning || 'Issues found and fixed',
+      affectedFile: cleanerResult.fileResults[0]?.filePath || '',
+      affectedLine: cleanerResult.fileResults[0]?.issues[0]?.line || 0,
+      patchDiff: cleanerResult.fileResults[0]?.patchDiff || '',
+      confidence: cleanerResult.overallConfidence,
+      fixStrategy: 'auto-fix',
+      explanation: cleanerResult.confidenceReasoning || '',
+      suggestedFix: cleanerResult.fileResults[0]?.cleanedContent || '',
+    };
 
     // Create or update the investigation record
     let investigationId = job.investigationId;
@@ -205,12 +221,10 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           explanation = ${analysis.explanation},
           status = 'completed',
           attempt = ${(job.attempt || 1)},
-          models_used = ${JSON.stringify({
-            pass1: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
-            pass2: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
-            pass3: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
-            pass4: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 }
-          })},
+          models_used = ${JSON.stringify(cleanerResult.modelsUsed)},
+          file_results = ${JSON.stringify(cleanerResult.fileResults)},
+          category_ids = ${categoryIds},
+          total_estimated_minutes = ${cleanerResult.fileResults.reduce((sum, r) => sum + r.linesChanged, 0)},
           resolved_at = NOW()
         WHERE id = ${investigationId}
       `;
@@ -232,7 +246,10 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           explanation,
           status,
           attempt,
-          models_used
+          models_used,
+          file_results,
+          category_ids,
+          total_estimated_minutes
         )
         VALUES (
           ${log.project_id},
@@ -250,12 +267,10 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           ${analysis.explanation},
           'completed',
           ${(job.attempt || 1)},
-          ${JSON.stringify({
-            pass1: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
-            pass2: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
-            pass3: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 },
-            pass4: { provider: config.provider, model: config.model, tokensUsed: 0, latencyMs: 0 }
-          })}
+          ${JSON.stringify(cleanerResult.modelsUsed)},
+          ${JSON.stringify(cleanerResult.fileResults)},
+          ${categoryIds},
+          ${cleanerResult.fileResults.reduce((sum, r) => sum + r.linesChanged, 0)}
         )
         RETURNING id
       `;
@@ -300,44 +315,24 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
         const branchName = `snowflake/fix-${investigationId.substring(0, 8)}-${Date.now()}`;
         await github.createBranch(branchName, ghConfig.default_branch);
 
-        // Get current file
-        let currentContent = '';
-        try {
-          const file = await github.getFile(analysis.affectedFile, ghConfig.default_branch);
-          currentContent = file.content;
-        } catch {
-          // File doesn't exist yet
+        for (const fileResult of cleanerResult.fileResults) {
+          if (!fileResult.cleanedContent || fileResult.cleanedContent === fileResult.originalContent) continue;
+
+          let fixedContent = fileResult.cleanedContent;
+          if (fileResult.patchDiff && fileResult.patchDiff.includes('@@')) {
+            const applied = applyUnifiedPatch(fileResult.originalContent, fileResult.patchDiff);
+            if (applied) fixedContent = applied;
+          }
+
+          await github.commitFile(
+            branchName,
+            fileResult.filePath,
+            fixedContent,
+            `fix: auto-patch ${fileResult.filePath.split('/').pop()}\n\nGenerated by Snowflake`
+          );
         }
 
-        // Apply real patch when the LLM produced a workable diff; fall back to
-        // the suggestedFix snippet only if it actually looks like code.
-        const fixedContent = applyUnifiedPatch(currentContent, analysis.patchDiff)
-          ?? (looksLikeCode(analysis.suggestedFix) ? currentContent + '\n\n' + analysis.suggestedFix : null);
-
-        if (!fixedContent) {
-          throw new Error('No usable patch produced, skipping auto-PR');
-        }
-
-        let commitMessage = `fix: auto-patch for ${analysis.rootCause.substring(0, 50)}`;
-        try {
-          const generated = await generateCommitMessage({
-            provider: config.provider,
-            apiKey: decryptedKey,
-            model: config.model,
-            baseUrl: config.base_url ?? undefined,
-            context: `Root cause: ${analysis.rootCause}\nAffected file: ${analysis.affectedFile}\nExplanation: ${analysis.explanation}`,
-          });
-          if (generated.trim()) commitMessage = generated.trim();
-        } catch (error) {
-          console.error('[v0] Commit message generation failed, using fallback:', error);
-        }
-
-        await github.commitFile(
-          branchName,
-          analysis.affectedFile,
-          fixedContent,
-          commitMessage
-        );
+        const totalIssuesFixed = cleanerResult.fileResults.reduce((sum, r) => sum + r.issuesFixed, 0);
 
         const prBody = generatePRBody({
           investigationId,
@@ -345,26 +340,14 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           confidence: analysis.confidence,
           fixStrategy: analysis.fixStrategy,
           explanation: analysis.explanation,
-          fileResults: [{
-            filePath: analysis.affectedFile,
-            patchDiff: analysis.patchDiff,
-            issuesFixed: 1,
-            issueReport: {
-              totalFound: 1,
-              totalFixed: 1,
-              byCategory: { critical_errors: 1 }
-            },
-            issues: [{
-              severity: 'critical',
-              category: 'critical_errors',
-              line: analysis.affectedLine,
-              description: analysis.rootCause.substring(0, 100),
-              before: analysis.patchDiff.split('\n').filter(l => l.startsWith('-')).slice(0, 5).join('\n'),
-              after: analysis.patchDiff.split('\n').filter(l => l.startsWith('+')).slice(0, 5).join('\n'),
-              reason: analysis.explanation,
-            }],
-          }],
-          totalIssuesFixed: 1,
+          fileResults: cleanerResult.fileResults.map(r => ({
+            filePath: r.filePath,
+            patchDiff: r.patchDiff,
+            issuesFixed: r.issuesFixed,
+            issueReport: r.issueReport,
+            issues: r.issues,
+          })),
+          totalIssuesFixed,
           passesRun: 4,
           provider: config.provider,
           modelName: config.model,
@@ -372,16 +355,20 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           defaultBranch: ghConfig.default_branch,
         });
 
+        const commitTitle = generateMultiFileCommitTitle(
+          cleanerResult.fileResults.map(r => r.filePath),
+          analysis.rootCause
+        );
+
         const pr = await github.createPullRequest(
           branchName,
-          `fix: ${analysis.rootCause.substring(0, 60)}`,
+          commitTitle,
           prBody,
           ghConfig.default_branch
         );
 
         await github.addPRLabel(pr.number, ['snowflake-auto-fix']);
 
-        // Update investigation with PR
         await sql`
           UPDATE public.investigations
           SET pr_url = ${pr.url}, pr_number = ${pr.number}
@@ -404,7 +391,7 @@ export async function processInvestigation(job: InvestigationJob): Promise<void>
           prUrl: pr.url,
           prNumber: pr.number,
           branchName,
-          commitTitle: commitMessage,
+          commitTitle,
         });
 
         emitToProject(log.project_id, 'ci:watching', {
@@ -642,14 +629,21 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
     });
 
     const sourceFiles: Record<string, string> = {};
+    const fileSHAs: Record<string, string> = {};
     const changedPaths = commit.files.map((f) => f.path).filter(Boolean);
 
     for (const filePath of changedPaths.slice(0, 15)) {
       try {
-        const file = await github.getCommitFile(filePath, commit.sha);
-        sourceFiles[file.path] = file.content;
+        const fileWithSHA = await github.getFileWithSHA(filePath, commit.sha);
+        sourceFiles[fileWithSHA.path] = fileWithSHA.content;
+        fileSHAs[fileWithSHA.path] = fileWithSHA.sha;
       } catch {
-        // Skip unreadable files (binary, deleted, submodules)
+        try {
+          const file = await github.getFile(filePath, commit.sha);
+          sourceFiles[file.path] = file.content;
+        } catch {
+          // Skip unreadable files (binary, deleted, submodules)
+        }
       }
     }
 
@@ -663,7 +657,9 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
       throw new Error('No LLM configured for this project');
     }
 
-    let analysis: AnalysisResult | null = null;
+    const categoryIds = ['critical_errors', 'security', 'logic_errors', 'code_quality', 'style_cleanup'];
+
+    let cleanerResult: CleanerResult | null = null;
     let usedConfig: LLMConfigRow | null = null;
     let lastError: unknown = null;
     const providerFailures: string[] = [];
@@ -689,13 +685,17 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
           message: `Analyzing with ${config.provider}/${config.model}`,
         });
 
-        const provider = await getLLMProvider(
-          config.provider,
-          decryptValue(config.encrypted_key),
-          config.model,
-          config.base_url ?? undefined
-        );
-        analysis = await provider.analyze(stackContext, sourceFiles);
+        cleanerResult = await cleanFiles({
+          sourceFiles,
+          fileSHAs,
+          categoryIds,
+          provider: config.provider,
+          apiKey: decryptValue(config.encrypted_key),
+          model: config.model,
+          baseUrl: config.base_url ?? undefined,
+          stackTrace: stackContext,
+          emitEvent: (type, data) => emitToProject(projectId, type, data),
+        });
         usedConfig = config;
         break;
       } catch (error) {
@@ -720,7 +720,7 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
       }
     }
 
-    if (!analysis) {
+    if (!cleanerResult) {
       if (providerFailures.length > 0) {
         throw new Error(
           `All LLM providers failed — ${providerFailures.join('; ')}`
@@ -728,6 +728,17 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
       }
       throw lastError instanceof Error ? lastError : new Error('All LLM providers failed');
     }
+
+    const analysis: AnalysisResult = {
+      rootCause: cleanerResult.confidenceReasoning || 'Issues found and fixed',
+      affectedFile: cleanerResult.fileResults[0]?.filePath || '',
+      affectedLine: cleanerResult.fileResults[0]?.issues[0]?.line || 0,
+      patchDiff: cleanerResult.fileResults[0]?.patchDiff || '',
+      confidence: cleanerResult.overallConfidence,
+      fixStrategy: 'auto-fix',
+      explanation: cleanerResult.confidenceReasoning || '',
+      suggestedFix: cleanerResult.fileResults[0]?.cleanedContent || '',
+    };
 
     if (!analysis.rootCause || analysis.confidence <= 0) {
       throw new Error(
@@ -776,7 +787,11 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
         fix_strategy,
         explanation,
         status,
-        attempt
+        attempt,
+        models_used,
+        file_results,
+        category_ids,
+        total_estimated_minutes
       )
       VALUES (
         ${projectId},
@@ -792,7 +807,11 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
         ${analysis.fixStrategy},
         ${analysis.explanation},
         'completed',
-        1
+        1,
+        ${JSON.stringify(cleanerResult.modelsUsed)},
+        ${JSON.stringify(cleanerResult.fileResults)},
+        ${categoryIds},
+        ${cleanerResult.fileResults.reduce((sum, r) => sum + r.linesChanged, 0)}
       )
       RETURNING id
     `;
@@ -838,39 +857,47 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
     });
 
     const autoPrEnabled = ghConfig.auto_pr ?? true;
-    if (analysis.confidence > 80 && autoPrEnabled && analysis.affectedFile) {
+    if (analysis.confidence > 80 && autoPrEnabled) {
       try {
         const branchName = `snowflake/fix-${investigationId.substring(0, 8)}-${Date.now()}`;
         await github.createBranch(branchName, event.default_branch || ghConfig.default_branch);
 
-        let currentContent = '';
-        try {
-          const file = await github.getFile(analysis.affectedFile, event.default_branch || ghConfig.default_branch);
-          currentContent = file.content;
-        } catch {
-          // File doesn't exist yet
+        for (const fileResult of cleanerResult.fileResults) {
+          if (!fileResult.cleanedContent || fileResult.cleanedContent === fileResult.originalContent) continue;
+
+          let fixedContent = fileResult.cleanedContent;
+          if (fileResult.patchDiff && fileResult.patchDiff.includes('@@')) {
+            const applied = applyUnifiedPatch(fileResult.originalContent, fileResult.patchDiff);
+            if (applied) fixedContent = applied;
+          }
+
+          await github.commitFile(
+            branchName,
+            fileResult.filePath,
+            fixedContent,
+            `fix: auto-patch ${fileResult.filePath.split('/').pop()}\n\nGenerated by Snowflake`
+          );
         }
 
-        const fixedContent = applyUnifiedPatch(currentContent, analysis.patchDiff)
-          ?? (looksLikeCode(analysis.suggestedFix) ? currentContent + '\n\n' + analysis.suggestedFix : null);
+        const totalIssuesFixed = cleanerResult.fileResults.reduce((sum, r) => sum + r.issuesFixed, 0);
 
-        if (!fixedContent) {
-          throw new Error('No usable patch produced, skipping auto-PR');
-        }
-
-        let commitMessage = `fix: auto-patch for ${analysis.rootCause.substring(0, 50)}`;
+        let commitTitle = `fix: auto-patch for ${analysis.rootCause.substring(0, 50)}`;
         try {
-          commitMessage = await generateEventCommitMessage(
+          const generated = await generateEventCommitMessage(
             projectId,
-            `Root cause: ${analysis.rootCause}\nAffected file: ${analysis.affectedFile}\nExplanation: ${analysis.explanation}`,
+            `Root cause: ${analysis.rootCause}\nFiles changed: ${cleanerResult.fileResults.map(r => r.filePath).join(', ')}\nExplanation: ${analysis.explanation}`,
             event.commit_provider,
             event.commit_model
           );
+          if (generated.trim()) commitTitle = generated.trim();
         } catch (error) {
           console.error('[v0] Commit message generation failed, using fallback:', error);
         }
 
-        await github.commitFile(branchName, analysis.affectedFile, fixedContent, commitMessage);
+        const multiFileTitle = generateMultiFileCommitTitle(
+          cleanerResult.fileResults.map(r => r.filePath),
+          analysis.rootCause
+        );
 
         const prBody = generatePRBody({
           investigationId,
@@ -878,26 +905,14 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
           confidence: analysis.confidence,
           fixStrategy: analysis.fixStrategy,
           explanation: analysis.explanation,
-          fileResults: [{
-            filePath: analysis.affectedFile,
-            patchDiff: analysis.patchDiff,
-            issuesFixed: 1,
-            issueReport: {
-              totalFound: 1,
-              totalFixed: 1,
-              byCategory: { critical_errors: 1 }
-            },
-            issues: [{
-              severity: 'critical',
-              category: 'critical_errors',
-              line: analysis.affectedLine,
-              description: analysis.rootCause.substring(0, 100),
-              before: analysis.patchDiff.split('\n').filter(l => l.startsWith('-')).slice(0, 5).join('\n'),
-              after: analysis.patchDiff.split('\n').filter(l => l.startsWith('+')).slice(0, 5).join('\n'),
-              reason: analysis.explanation,
-            }],
-          }],
-          totalIssuesFixed: 1,
+          fileResults: cleanerResult.fileResults.map(r => ({
+            filePath: r.filePath,
+            patchDiff: r.patchDiff,
+            issuesFixed: r.issuesFixed,
+            issueReport: r.issueReport,
+            issues: r.issues,
+          })),
+          totalIssuesFixed,
           passesRun: 4,
           provider: usedConfig?.provider || event.fix_provider,
           modelName: usedConfig?.model || event.fix_model,
@@ -907,7 +922,7 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
 
         const pr = await github.createPullRequest(
           branchName,
-          `fix: ${analysis.rootCause.substring(0, 60)}`,
+          multiFileTitle,
           prBody,
           event.default_branch || ghConfig.default_branch
         );
@@ -925,6 +940,7 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
           prUrl: pr.url,
           prNumber: pr.number,
           branchName,
+          commitTitle: multiFileTitle,
         });
       } catch (error) {
         console.error('[v0] Event auto-PR creation failed:', error);

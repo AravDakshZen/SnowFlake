@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 const NAV_LINKS = [
   { label: "How it works", href: "#workflow" },
@@ -18,6 +18,14 @@ const NAV_STYLE = {
 
 export function MobileNav() {
   const [open, setOpen] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/auth/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.user) setLoggedIn(true) })
+      .catch(() => {})
+  }, [])
 
   const close = () => setOpen(false)
 
@@ -46,9 +54,15 @@ export function MobileNav() {
           </div>
 
           <div className="flex items-center gap-2">
-            <a href="/signup" className="text-[11px] px-4 py-2 rounded-xl border border-black/10 text-black/60 hover:text-black hover:border-black/20 hover:bg-black/[0.03] transition-all duration-200 tracking-wide hidden md:block" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
-              GET API ACCESS
-            </a>
+            {loggedIn ? (
+              <a href="/dashboard" className="text-[11px] px-4 py-2 rounded-xl border border-black/10 text-black/60 hover:text-black hover:border-black/20 hover:bg-black/[0.03] transition-all duration-200 tracking-wide hidden md:block" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
+                DASHBOARD
+              </a>
+            ) : (
+              <a href="/signup" className="text-[11px] px-4 py-2 rounded-xl border border-black/10 text-black/60 hover:text-black hover:border-black/20 hover:bg-black/[0.03] transition-all duration-200 tracking-wide hidden md:block" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
+                GET API ACCESS
+              </a>
+            )}
 
             {/* Burger — mobile only */}
             <button
@@ -103,9 +117,15 @@ export function MobileNav() {
               </a>
             ))}
             <div className="mt-1 px-2 pb-1">
-              <a href="/signup" onClick={close} className="block w-full text-center text-[11px] px-4 py-2.5 rounded-xl border border-black/10 text-black/60 hover:text-black hover:border-black/20 hover:bg-black/[0.03] transition-all duration-200 tracking-wide" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
-                GET API ACCESS
-              </a>
+              {loggedIn ? (
+                <a href="/dashboard" onClick={close} className="block w-full text-center text-[11px] px-4 py-2.5 rounded-xl border border-black/10 text-black/60 hover:text-black hover:border-black/20 hover:bg-black/[0.03] transition-all duration-200 tracking-wide" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
+                  DASHBOARD
+                </a>
+              ) : (
+                <a href="/signup" onClick={close} className="block w-full text-center text-[11px] px-4 py-2.5 rounded-xl border border-black/10 text-black/60 hover:text-black hover:border-black/20 hover:bg-black/[0.03] transition-all duration-200 tracking-wide" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
+                  GET API ACCESS
+                </a>
+              )}
             </div>
           </div>
         </div>

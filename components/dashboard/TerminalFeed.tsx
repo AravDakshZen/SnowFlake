@@ -356,7 +356,7 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
           <span className="size-3 rounded-full bg-[#FF5F57]" />
           <span className="size-3 rounded-full bg-[#FFBD2E]" />
           <span className="size-3 rounded-full bg-[#28C840]" />
-          <span className="ml-3 text-xs text-white/40 font-[family-name:var(--font-mono)]">snowflake@tracewise: ~/investigation</span>
+          <span className="ml-3 text-xs text-white/40 font-[family-name:var(--font-mono)]">snowflake@snowflake: ~/investigation</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] text-white/30 font-[family-name:var(--font-mono)]">{lines.length} lines</span>
@@ -392,14 +392,14 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
             </div>
           ) : lines.length === 0 ? (
             <div className="text-emerald-400/60">
-              <div>snowflake@tracewise:~$ waiting for errors...</div>
+              <div>snowflake@snowflake:~$ waiting for errors...</div>
               <span className="anim-blink">█</span>
             </div>
           ) : (
             <>
               {!activeInvestigation && lines.length === 0 && (
                 <div className="text-emerald-400/60 mb-2">
-                  snowflake@tracewise:~$ snowflake investigate --auto
+                  snowflake@snowflake:~$ snowflake investigate --auto
                 </div>
               )}
               {lines.map((line, i) => (
@@ -423,7 +423,7 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
                 </div>
               ))}
               <div className="text-emerald-400/60 mt-1">
-                snowflake@tracewise:~$ <span className="anim-blink">█</span>
+                snowflake@snowflake:~$ <span className="anim-blink">█</span>
               </div>
             </>
           )}

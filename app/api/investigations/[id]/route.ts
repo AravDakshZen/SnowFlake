@@ -34,6 +34,10 @@ export async function GET(
         i.fix_strategy,
         i.created_at,
         i.event_id,
+        i.file_results,
+        i.models_used,
+        i.category_ids,
+        i.total_estimated_minutes,
         al.stack_trace,
         al.request_body,
         al.response_body,
@@ -65,8 +69,16 @@ export async function GET(
       ORDER BY attempt ASC
     `;
 
+    const inv = investigation[0];
+    if (inv.file_results && typeof inv.file_results === 'string') {
+      try { inv.file_results = JSON.parse(inv.file_results); } catch {}
+    }
+    if (inv.models_used && typeof inv.models_used === 'string') {
+      try { inv.models_used = JSON.parse(inv.models_used); } catch {}
+    }
+
     return NextResponse.json({
-      investigation: investigation[0],
+      investigation: inv,
       attempts,
     });
   } catch (error) {

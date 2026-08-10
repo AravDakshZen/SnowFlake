@@ -25,13 +25,13 @@ export default function SignUpPage() {
       if (data.requiresEmailConfirmation) {
         toastSuccess('Account created', 'Check your inbox to confirm your email.')
       } else {
-        toastSuccess('Account created', 'Welcome to Tracewise.')
+        toastSuccess('Account created', 'Welcome to Snowflake.')
       }
       router.replace('/signin?created=1')
     } catch (cause) { const message = cause instanceof Error ? cause.message : 'Unable to create account'; setError(message); toastError('Could not create account', message); setLoading(false) }
   }
   const update = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, [key]: event.target.value }))
-  return <AuthShell eyebrow="Start shipping safely" title="Create your workspace" description="Create a Tracewise account and connect your first production repository.">
+  return <AuthShell eyebrow="Start shipping safely" title="Create your workspace" description="Create a Snowflake account and connect your first production repository.">
     <div className="mt-8 flex flex-col gap-3 sm:flex-row"><a href="/api/auth/oauth?provider=github" onClick={() => toastInfo('Redirecting to GitHub', 'Authorize the app to continue.')} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><GitHubIcon className="size-4" /> GitHub</a><a href="/api/auth/oauth?provider=google" onClick={() => toastInfo('Redirecting to Google', 'Authorize the app to continue.')} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><GoogleIcon className="size-4" /> Google</a></div>
     <div className="my-7 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /><span>OR USE EMAIL</span><span className="h-px flex-1 bg-border" /></div>
     <form onSubmit={handleSignUp} className="flex flex-col gap-4">{error && <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}

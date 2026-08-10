@@ -30,7 +30,7 @@ export default function SignInPage() {
       const response = await fetch('/api/auth/signin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Invalid email or password')
-      toastSuccess('Signed in', 'Welcome back to Tracewise.')
+      toastSuccess('Signed in', 'Welcome back to Snowflake.')
       router.replace('/dashboard')
       router.refresh()
     } catch (cause) {
@@ -42,7 +42,7 @@ export default function SignInPage() {
   }
 
   return (
-    <AuthShell eyebrow="Welcome back" title="Sign in to Tracewise" description="Your production signal is waiting. Continue to the reliability workspace.">
+    <AuthShell eyebrow="Welcome back" title="Sign in to Snowflake" description="Your production signal is waiting. Continue to the reliability workspace.">
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <a href="/api/auth/oauth?provider=github" onClick={() => toastInfo('Redirecting to GitHub', 'Authorize the app to continue.')} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><GitHubIcon className="size-4" /> GitHub</a>
         <a href="/api/auth/oauth?provider=google" onClick={() => toastInfo('Redirecting to Google', 'Authorize the app to continue.')} className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-border font-medium transition hover:bg-muted"><GoogleIcon className="size-4" /> Google</a>
@@ -55,7 +55,7 @@ export default function SignInPage() {
         <div className="flex justify-end"><Link href="/forgot-password" className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Forgot password?</Link></div>
         <button className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60" disabled={loading}>{loading && <Loader2 className="size-4 animate-spin" />} {loading ? 'Signing in' : 'Sign in'}</button>
       </form>
-      <p className="mt-7 text-center text-sm text-muted-foreground">New to Tracewise? <Link href="/signup" className="font-semibold text-foreground underline-offset-4 hover:underline">Create an account</Link></p>
+      <p className="mt-7 text-center text-sm text-muted-foreground">New to Snowflake? <Link href="/signup" className="font-semibold text-foreground underline-offset-4 hover:underline">Create an account</Link></p>
     </AuthShell>
   )
 }

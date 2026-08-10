@@ -7,6 +7,7 @@ import { PixelIcon } from '@/components/pixel-icon'
 import { ProviderChip, getProviderBrand } from '@/components/provider-icons'
 import { ProviderSelect, ProviderLogo } from '@/components/provider-select'
 import { PROVIDERS } from '@/lib/llm'
+import { ISSUE_CATEGORIES } from '@/types/event'
 import { toastSuccess, toastError, toastInfo, toastLoading } from '@/lib/toasts'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -34,9 +35,11 @@ export default function SettingsPage() {
   const [eventForm, setEventForm] = useState<{
     name: string; repoOwner: string; repoName: string; defaultBranch: string; triggerNow: boolean;
     fixProvider: string; fixModel: string; commitProvider: string; commitModel: string;
+    categoryIds: string[];
   }>({
     name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true,
     fixProvider: '', fixModel: '', commitProvider: '', commitModel: '',
+    categoryIds: ISSUE_CATEGORIES.map(c => c.id),
   })
   const selectedProviderDefinition = PROVIDERS[selectedProvider]
   const [editingConfigId, setEditingConfigId] = useState<string | null>(null)
@@ -320,6 +323,7 @@ export default function SettingsPage() {
         name: '', repoOwner: '', repoName: '', defaultBranch: 'main', triggerNow: true,
         fixProvider: def?.provider ?? '', fixModel: def?.model ?? '',
         commitProvider: def?.provider ?? '', commitModel: def?.model ?? '',
+        categoryIds: ISSUE_CATEGORIES.map(c => c.id),
       })
       await loadEvents()
       toastSuccess('Event created', `"${result.event?.name}" is now watching ${result.event?.repo_owner}/${result.event?.repo_name}.`)
@@ -492,6 +496,15 @@ export default function SettingsPage() {
       toastError('Could not change email', message)
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      window.location.href = '/'
+    } catch {
+      window.location.href = '/'
     }
   }
 
@@ -729,7 +742,15 @@ export default function SettingsPage() {
               </div>}
 
               <div>
-                <label className="block text-xs tracking-widest text-black/40 mb-2">API KEY</label>
+                <label className="block text-xs tracking-widest text-black/40 mb-2">
+                  API KEY
+                  <span className="ml-1.5 group relative inline-block" tabIndex={0}>
+                    <span className="inline-flex items-center justify-center size-3.5 rounded-full bg-black/10 text-[9px] text-black/40 cursor-help">?</span>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2 rounded-lg bg-[#1a1a2e] text-white text-[11px] leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-50">
+                      This is your personal API key for the LLM provider (e.g. OpenAI, Groq). Snowflake uses it to run error analysis on your code. It is encrypted at rest and never shared.
+                    </span>
+                  </span>
+                </label>
                 <input 
                   type="password" 
                   name="api_key" 
@@ -1110,6 +1131,36 @@ export default function SettingsPage() {
                     </select>
                   </div>
 
+                  <div className="rounded-xl border border-black/[0.07] bg-black/[0.02] p-4">
+                    <label className="block text-xs tracking-widest text-black/40 mb-1">ISSUE CATEGORIES TO SCAN</label>
+                    <p className="text-xs text-black/45 mb-3">
+                      Select which types of issues Snowflake should detect and fix. All categories are enabled by default.
+                    </p>
+                    <div className="space-y-3">
+                      {ISSUE_CATEGORIES.map((cat) => (
+                        <label key={cat.id} className="flex items-start gap-3 cursor-pointer group">
+                          <input
+                            type="checkbox"
+                            checked={eventForm.categoryIds.includes(cat.id)}
+                            onChange={(e) => {
+                              setEventForm((f) => ({
+                                ...f,
+                                categoryIds: e.target.checked
+                                  ? [...f.categoryIds, cat.id]
+                                  : f.categoryIds.filter((id) => id !== cat.id),
+                              }))
+                            }}
+                            className="size-4 accent-black mt-0.5"
+                          />
+                          <div>
+                            <span className="text-sm text-black/80 group-hover:text-black">{cat.label}</span>
+                            <p className="text-xs text-black/40 mt-0.5">{cat.description}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="flex items-center gap-3">
                     <input
                       id="event-trigger-now"
@@ -1241,7 +1292,14 @@ export default function SettingsPage() {
             
             <form onSubmit={handleAlertSubmit} className="space-y-6">
               <div>
-                <label className="block text-xs tracking-widest text-black/40 mb-2">SLACK WEBHOOK URL</label>
+                <label className="block text-xs tracking-widest text-black/40 mb-2">SLACK WEBHOOK URL
+                  <span className="ml-1.5 group relative inline-block" tabIndex={0}>
+                    <span className="inline-flex items-center justify-center size-3.5 rounded-full bg-black/10 text-[9px] text-black/40 cursor-help">?</span>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2 rounded-lg bg-[#1a1a2e] text-white text-[11px] leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-50">
+                      Create an Incoming Webhook in your Slack workspace settings. Snowflake will post error alerts to the channel you configure.
+                    </span>
+                  </span>
+                </label>
                 <input 
                   type="url" 
                   name="slack_webhook" 
@@ -1251,7 +1309,14 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs tracking-widest text-black/40 mb-2">EMAIL ADDRESS</label>
+                <label className="block text-xs tracking-widest text-black/40 mb-2">EMAIL ADDRESS
+                  <span className="ml-1.5 group relative inline-block" tabIndex={0}>
+                    <span className="inline-flex items-center justify-center size-3.5 rounded-full bg-black/10 text-[9px] text-black/40 cursor-help">?</span>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2 rounded-lg bg-[#1a1a2e] text-white text-[11px] leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-50">
+                      Receive email notifications when Snowflake detects high-severity clusters or new critical errors in your project.
+                    </span>
+                  </span>
+                </label>
                 <input 
                   type="email" 
                   name="email" 
@@ -1275,7 +1340,14 @@ export default function SettingsPage() {
             </RevealText>
             
             <div className="p-6 rounded-xl border border-black/[0.07] bg-white">
-              <p className="text-xs text-black/40 tracking-widest uppercase mb-4">YOUR API KEY</p>
+              <p className="text-xs text-black/40 tracking-widest uppercase mb-4">YOUR API KEY
+                <span className="ml-1.5 group relative inline-block" tabIndex={0}>
+                  <span className="inline-flex items-center justify-center size-3.5 rounded-full bg-black/10 text-[9px] text-black/40 cursor-help">?</span>
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 rounded-lg bg-[#1a1a2e] text-white text-[11px] leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-50">
+                    This key authenticates your backend when sending error logs to Snowflake via the /api/logs endpoint. Include it as a Bearer token in the Authorization header.
+                  </span>
+                </span>
+              </p>
               {generatedKey ? (
                 <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
                   <p className="text-xs font-medium text-amber-800 mb-2">NEW KEY — shown only once. Copy it now.</p>
@@ -1382,6 +1454,17 @@ export default function SettingsPage() {
                 {actionLoading === 'email' ? 'SENDING...' : 'SEND CONFIRMATION'}
               </Button>
             </form>
+
+            <div className="mt-6 p-6 rounded-xl border border-black/[0.07] bg-white">
+              <h3 className="text-sm font-light tracking-widest mb-2">SIGN OUT</h3>
+              <p className="text-xs text-black/40 mb-4">
+                Sign out of your Snowflake account. You can sign back in anytime.
+              </p>
+              <Button type="button" variant="outline" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                SIGN OUT
+              </Button>
+            </div>
 
             <div className="mt-6 p-6 rounded-xl border border-red-300 bg-red-50">
               <h3 className="text-sm font-light tracking-widest text-red-700 mb-2">DELETE ACCOUNT</h3>

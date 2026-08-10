@@ -236,46 +236,113 @@ export default function SnowflakePage() {
             </BentoCard>
 
             {/* Bottom row */}
-            <BentoCard className="col-span-12 md:col-span-4 p-8 min-h-[200px]" delay={120}>
-              <div className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center mb-5">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <BentoCard className="col-span-12 md:col-span-4 p-8 min-h-[200px] relative overflow-hidden" delay={120}>
+              {/* Background illustration — monitoring waveform */}
+              <div className="absolute inset-0 opacity-[0.06]">
+                <svg viewBox="0 0 400 240" fill="none" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
+                  <path d="M0 160 Q20 160 30 120 T60 140 T90 80 T120 130 T150 60 T180 110 T210 40 T240 100 T270 50 T300 120 T330 70 T360 130 T390 90 L400 90" stroke="black" strokeWidth="2" fill="none"/>
+                  <path d="M0 180 Q20 180 30 150 T60 165 T90 120 T120 155 T150 100 T180 140 T210 80 T240 135 T270 90 T300 150 T330 110 T360 155 T390 130 L400 130" stroke="black" strokeWidth="1" fill="none" opacity="0.5"/>
+                  <line x1="0" y1="200" x2="400" y2="200" stroke="black" strokeWidth="0.5" opacity="0.3"/>
+                  <line x1="0" y1="120" x2="400" y2="120" stroke="black" strokeWidth="0.5" opacity="0.15" strokeDasharray="4 4"/>
+                  <line x1="0" y1="80" x2="400" y2="80" stroke="black" strokeWidth="0.5" opacity="0.15" strokeDasharray="4 4"/>
+                  {/* Pulse dots on the waveform */}
+                  <circle cx="150" cy="60" r="4" fill="black" opacity="0.4"/>
+                  <circle cx="210" cy="40" r="5" fill="black" opacity="0.5"/>
+                  <circle cx="270" cy="50" r="3" fill="black" opacity="0.3"/>
+                  <circle cx="330" cy="70" r="4" fill="black" opacity="0.35"/>
+                </svg>
               </div>
-              <h3 className="text-lg font-light mb-2">Real-time Monitoring</h3>
-              <p className="text-sm text-black/45 leading-relaxed">Trace every decision. Debug with full execution history and live logs.</p>
+              <div className="relative z-10">
+                <div className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center mb-5">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <h3 className="text-lg font-light mb-2">Real-time Monitoring</h3>
+                <p className="text-sm text-black/45 leading-relaxed">Trace every decision. Debug with full execution history and live logs.</p>
+              </div>
             </BentoCard>
 
-            <BentoCard className="col-span-12 md:col-span-4 p-8 min-h-[200px]" delay={160}>
-              <div className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center mb-5">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 10h8M8 14h5"/></svg>
+            <BentoCard className="col-span-12 md:col-span-4 p-8 min-h-[200px] relative overflow-hidden" delay={160}>
+              {/* Background illustration — connected memory nodes */}
+              <div className="absolute inset-0 opacity-[0.06]">
+                <svg viewBox="0 0 400 240" fill="none" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
+                  {/* Grid of memory blocks */}
+                  {Array.from({ length: 5 }).map((_, row) =>
+                    Array.from({ length: 7 }).map((_, col) => {
+                      const x = 40 + col * 50
+                      const y = 20 + row * 44
+                      const isActive = (row + col) % 3 === 0 || (row * col) % 5 === 0
+                      return (
+                        <g key={`${row}-${col}`}>
+                          <rect x={x} y={y} width="36" height="28" rx="4" stroke="black" strokeWidth={isActive ? "1.5" : "0.5"} fill={isActive ? "black" : "none"} opacity={isActive ? 0.15 : 0.2}/>
+                          {isActive && <rect x={x + 4} y={y + 6} width="16" height="3" rx="1" fill="black" opacity="0.2"/>}
+                          {isActive && <rect x={x + 4} y={y + 13} width="24" height="2" rx="1" fill="black" opacity="0.12"/>}
+                          {isActive && <rect x={x + 4} y={y + 19} width="20" height="2" rx="1" fill="black" opacity="0.08"/>}
+                        </g>
+                      )
+                    })
+                  )}
+                  {/* Connection lines between active nodes */}
+                  <line x1="76" y1="34" x2="176" y2="34" stroke="black" strokeWidth="0.8" opacity="0.15"/>
+                  <line x1="176" y1="34" x2="176" y2="122" stroke="black" strokeWidth="0.8" opacity="0.15"/>
+                  <line x1="176" y1="122" x2="326" y2="122" stroke="black" strokeWidth="0.8" opacity="0.15"/>
+                  <line x1="326" y1="122" x2="326" y2="210" stroke="black" strokeWidth="0.8" opacity="0.15"/>
+                </svg>
               </div>
-              <h3 className="text-lg font-light mb-2">Memory & Context</h3>
-              <p className="text-sm text-black/45 leading-relaxed">Persistent long-term memory across sessions. Agents learn from every interaction.</p>
+              <div className="relative z-10">
+                <div className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center mb-5">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 10h8M8 14h5"/></svg>
+                </div>
+                <h3 className="text-lg font-light mb-2">Memory & Context</h3>
+                <p className="text-sm text-black/45 leading-relaxed">Persistent long-term memory across sessions. Agents learn from every interaction.</p>
+              </div>
             </BentoCard>
 
-            <BentoCard className="col-span-12 md:col-span-4 p-8 min-h-[200px]" delay={200}>
-              <div className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center mb-5">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <BentoCard className="col-span-12 md:col-span-4 p-8 min-h-[200px] relative overflow-hidden" delay={200}>
+              {/* Background illustration — shield with access layers */}
+              <div className="absolute inset-0 opacity-[0.06]">
+                <svg viewBox="0 0 400 240" fill="none" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
+                  {/* Large shield outline */}
+                  <path d="M200 30 L320 70 L320 140 C320 190 260 220 200 240 C140 220 80 190 80 140 L80 70 Z" stroke="black" strokeWidth="1.5" fill="none"/>
+                  <path d="M200 55 L295 88 L295 140 C295 178 248 202 200 218 C152 202 105 178 105 140 L105 88 Z" stroke="black" strokeWidth="0.8" fill="none" opacity="0.5"/>
+                  <path d="M200 80 L270 105 L270 140 C270 165 238 182 200 195 C162 182 130 165 130 140 L130 105 Z" stroke="black" strokeWidth="0.5" fill="none" opacity="0.3"/>
+                  {/* Lock icon in center */}
+                  <rect x="188" y="125" width="24" height="20" rx="3" stroke="black" strokeWidth="1.2" fill="black" opacity="0.12"/>
+                  <path d="M195 125 V118 C195 113 200 110 205 110 C210 110 215 113 215 118 V125" stroke="black" strokeWidth="1.2" fill="none"/>
+                  <circle cx="205" cy="135" r="2" fill="black" opacity="0.3"/>
+                  {/* Permission dots around shield */}
+                  <circle cx="60" cy="120" r="3" fill="black" opacity="0.2"/>
+                  <circle cx="55" cy="80" r="2" fill="black" opacity="0.15"/>
+                  <circle cx="65" cy="160" r="2.5" fill="black" opacity="0.18"/>
+                  <circle cx="340" cy="120" r="3" fill="black" opacity="0.2"/>
+                  <circle cx="345" cy="80" r="2" fill="black" opacity="0.15"/>
+                  <circle cx="335" cy="160" r="2.5" fill="black" opacity="0.18"/>
+                </svg>
               </div>
-              <h3 className="text-lg font-light mb-2">Guardrails & Permissions</h3>
-              <p className="text-sm text-black/45 leading-relaxed">Define what agents can and cannot do. Fine-grained access control per tool.</p>
+              <div className="relative z-10">
+                <div className="w-10 h-10 rounded-xl border border-black/10 flex items-center justify-center mb-5">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <h3 className="text-lg font-light mb-2">Guardrails & Permissions</h3>
+                <p className="text-sm text-black/45 leading-relaxed">Define what agents can and cannot do. Fine-grained access control per tool.</p>
+              </div>
             </BentoCard>
           </div>
         </div>
       </section>
 
-      {/* ── BUILD YOUR AGENTS (4 cards) ───────────────────────────────────── */}
+      {/* ── HOW SNOWFLAKE FIXES CODE (4 cards) ─────────────────────────────── */}
       <section id="agents" className="py-32 px-6 md:px-12 lg:px-20 border-t border-black/[0.06]">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8 mb-16">
             <div>
               <PixelIcon type="agents" size={40} />
-              <div className="mt-4"><Tag>AGENT TYPES</Tag></div>
+              <div className="mt-4"><Tag>HOW SNOWFLAKE FIXES CODE</Tag></div>
               <RevealText className="mt-5 text-4xl md:text-5xl font-light tracking-tight leading-[1.05]">
-                {"Plug-and-play agents\nready to deploy."}
+                {"From error to PR\nin 18 seconds."}
               </RevealText>
             </div>
             <p className="text-sm text-black/45 leading-relaxed max-w-xs">
-              Start with a pre-built agent or compose your own from primitives. Every agent is versioned, testable, and observable.
+              A 4-pass AI engine that detects every bug, cleans the code, verifies the fix, and ships a pull request automatically.
             </p>
           </div>
 
@@ -542,7 +609,7 @@ export default function SnowflakePage() {
                 {"Incidents moving\nfrom alert to answer."}
               </RevealText>
               <p className="mt-6 text-base text-black/40 leading-relaxed max-w-sm">
-                Watch every investigation evolve in real time. Tracewise keeps responders aligned with the same evidence, context, and next best action.
+                Watch every investigation evolve in real time. Snowflake keeps responders aligned with the same evidence, context, and next best action.
               </p>
               <div className="mt-10 flex items-end gap-2">
                 <LiveAgentCounter />
@@ -633,17 +700,17 @@ export default function SnowflakePage() {
           {/* Legal links */}
           <div className="flex items-center gap-6">
             {[
-              { label: "Privacy", href: "#" },
-              { label: "Terms",   href: "#" },
-              { label: "Docs",    href: "#" },
-              { label: "GitHub",  href: "#" },
+              { label: "Privacy", href: "/privacy" },
+              { label: "Terms",   href: "/terms" },
+              { label: "Docs",    href: "/docs" },
+              { label: "GitHub",  href: "https://github.com/AravDakshZen" },
             ].map(l => (
               <a key={l.label} href={l.href} className="text-xs text-black/25 hover:text-black/55 transition-colors tracking-widest">{l.label}</a>
             ))}
           </div>
         </div>
         <div className="max-w-6xl mx-auto mt-8 pt-6 border-t border-black/[0.04]">
-          <span className="text-xs text-black/20">© 2026 Snowflake. Error detection & automatic fixes.</span>
+          <span className="text-xs text-black/20">© 2025 Snowflake. Error detection & automatic fixes.</span>
         </div>
       </footer>
     </div>

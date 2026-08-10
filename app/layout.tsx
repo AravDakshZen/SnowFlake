@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     title: 'Snowflake — Error Detection & Automatic Fixes',
     description: 'Detect errors, analyze root causes, and automatically generate fixes with AI.',
     type: 'website',
-    url: 'https://snowflake.app',
+    url: 'https://snowflakedoitforyou.vercel.app',
     siteName: 'Snowflake',
   },
   twitter: {

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { toastError, toastSuccess } from '@/lib/toasts'
 import { DiffView } from '@/components/diff-viewer'
+import { IssueReportPanel } from '@/components/dashboard/IssueReportPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, ExternalLink, CheckCircle2, Clock, Copy, Cpu, XCircle, AlertTriangle } from 'lucide-react'
@@ -86,7 +87,12 @@ export default function InvestigationDetailPage() {
 
   const inv = investigation.investigation
   const investigationTitle = generateInvestigationTitle(inv)
-  const modelsUsed = investigation.models_used || []
+  const modelsUsedObj = investigation.models_used || inv.models_used || {}
+  const modelsUsed = Array.isArray(modelsUsedObj)
+    ? modelsUsedObj
+    : Object.entries(modelsUsedObj)
+        .filter(([_, v]) => v && typeof v === 'object' && (v as any).provider)
+        .map(([key, v]) => ({ pass: key, ...(v as any) }))
   const failedModels = investigation.failed_models || []
 
   const handleSavePatch = async () => {
@@ -243,6 +249,16 @@ export default function InvestigationDetailPage() {
             <div className="p-6 rounded-2xl border border-black/[0.07] bg-white">
               <p className="text-sm leading-relaxed text-black/70">{inv.root_cause}</p>
             </div>
+          </section>
+        )}
+
+        {/* File-by-File Issue Report */}
+        {inv.file_results && Array.isArray(inv.file_results) && inv.file_results.length > 0 && (
+          <section className="mb-12">
+            <IssueReportPanel
+              fileResults={inv.file_results}
+              totalIssuesFixed={inv.file_results.reduce((sum: number, r: any) => sum + (r.issuesFixed || 0), 0)}
+            />
           </section>
         )}
 

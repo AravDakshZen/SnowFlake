@@ -24,7 +24,7 @@ export function AuthShell({
         <section className="relative hidden w-[43%] flex-col justify-between overflow-hidden bg-foreground p-10 text-background lg:flex">
           <div className="relative z-10 flex items-center gap-3 font-mono text-sm tracking-[0.18em] uppercase">
             <span className="grid size-8 place-items-center border border-background/30"><ShieldCheck className="size-4" /></span>
-            tracewise
+            snowflake
           </div>
           <div className="relative z-10 max-w-sm">
             <p className="mb-5 font-mono text-xs tracking-[0.2em] text-background/55 uppercase">Autonomous reliability</p>
@@ -35,12 +35,12 @@ export function AuthShell({
             <span>BUILD 08.26</span>
             <span className="flex items-center gap-1">STATUS: READY <ArrowUpRight className="size-3" /></span>
           </div>
-          <Image src="/images/arc.png" alt="Tracewise dashboard signal visualization" fill className="object-cover opacity-30" priority />
+          <Image src="/images/arc.png" alt="Snowflake dashboard signal visualization" fill className="object-cover opacity-30" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-foreground via-foreground/65 to-transparent" />
         </section>
         <section className="flex w-full flex-col justify-center px-6 py-10 sm:px-12 lg:w-[57%] lg:px-20">
           <div className="mx-auto w-full max-w-md">
-            <div className="mb-10 lg:hidden"><Link href="/" className="font-mono text-sm tracking-[0.18em] uppercase">tracewise</Link></div>
+            <div className="mb-10 lg:hidden"><Link href="/" className="font-mono text-sm tracking-[0.18em] uppercase">snowflake</Link></div>
             <p className="font-mono text-xs tracking-[0.2em] text-muted-foreground uppercase">{eyebrow}</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
             <p className="mt-3 leading-6 text-muted-foreground">{description}</p>
