@@ -31,7 +31,10 @@ export default function SignInPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Invalid email or password')
       toastSuccess('Signed in', 'Welcome back to Snowflake.')
-      router.replace('/dashboard')
+      const profileRes = await fetch('/api/auth/profile')
+      const profileData = await profileRes.json()
+      const dest = profileData.user?.onboardingComplete ? '/dashboard' : '/onboarding'
+      router.replace(dest)
       router.refresh()
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Unable to sign in'

@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error && data.user) {
       await setSession(data.user.id, { email: data.user.email, name: data.user.user_metadata?.name ?? data.user.user_metadata?.full_name })
-      return NextResponse.redirect(new URL(next, request.url))
+      const onboardingComplete = data.user.user_metadata?.onboarding_complete === true
+      const dest = onboardingComplete ? next : '/onboarding'
+      return NextResponse.redirect(new URL(dest, request.url))
     }
   } catch (error) { console.error('[v0] auth callback failed', error) }
   return NextResponse.redirect(new URL('/signin?error=oauth_callback', request.url))

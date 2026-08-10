@@ -29,6 +29,7 @@ export async function GET() {
         email,
         name: nameFromUser(user, session.user.name),
         avatarUrl: user?.user_metadata?.avatar_url ?? null,
+        onboardingComplete: user?.user_metadata?.onboarding_complete === true,
       },
     })
   } catch (error) {
@@ -47,11 +48,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null)
     const name = typeof body?.name === 'string' ? body.name.trim().slice(0, 80) : ''
     const avatarUrl = typeof body?.avatarUrl === 'string' ? body.avatarUrl.trim().slice(0, 500) : ''
+    const onboardingComplete = body?.onboardingComplete === true
 
     const supabase = await createClient()
-    const { data, error } = await supabase.auth.updateUser({
-      data: { name, avatar_url: avatarUrl || null },
-    })
+    const updateData: Record<string, unknown> = { name, avatar_url: avatarUrl || null }
+    if (onboardingComplete) {
+      updateData.onboarding_complete = true
+    }
+    const { data, error } = await supabase.auth.updateUser({ data: updateData })
     if (error || !data.user) {
       console.error('[v0] profile update rejected:', error?.message)
       return NextResponse.json({ error: 'Unable to update profile' }, { status: 400 })
