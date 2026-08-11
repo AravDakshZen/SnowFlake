@@ -93,6 +93,25 @@ export default function OnboardingPage() {
     setTestResult('loading')
     const start = Date.now()
     try {
+      // First save the config to DB
+      const saveRes = await fetch('/api/settings/llm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: selectedProvider,
+          model: selectedModel || PROVIDERS[selectedProvider]?.models[0] || '',
+          api_key: providerKey || undefined,
+          base_url: baseUrl || PROVIDERS[selectedProvider]?.defaultBaseUrl || '',
+          project_id: projectId,
+        }),
+      })
+      
+      if (!saveRes.ok) {
+        setTestResult('error')
+        return
+      }
+
+      // Then test the connection
       const res = await fetch(`/api/settings/llm/test?provider=${selectedProvider}&projectId=${projectId}`)
       const latency = Date.now() - start
       if (res.ok) {
