@@ -279,69 +279,25 @@ export default function OnboardingPage() {
 
                     {/* API Key or Base URL */}
                     {selectedProvider === 'ollama' ? (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="mb-2 block text-xs tracking-widest text-[#666]">OLLAMA MODE</label>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setProviderKey('')
-                                setBaseUrl('http://localhost:11434/v1')
-                              }}
-                              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                                !providerKey 
-                                  ? 'bg-[#111] text-white' 
-                                  : 'bg-black/5 text-[#666] hover:bg-black/10'
-                              }`}
-                            >
-                              Local
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setBaseUrl('https://api.ollama.com/v1')
-                              }}
-                              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                                providerKey 
-                                  ? 'bg-[#111] text-white' 
-                                  : 'bg-black/5 text-[#666] hover:bg-black/10'
-                              }`}
-                            >
-                              Cloud (Free)
-                            </button>
-                          </div>
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-xs tracking-widest text-[#666]">ENDPOINT</label>
+                      <div>
+                        <label className="mb-2 block text-xs tracking-widest text-[#666]">API KEY</label>
+                        <div className="relative">
                           <Input
-                            value={baseUrl}
-                            onChange={e => setBaseUrl(e.target.value)}
-                            placeholder={providerKey ? 'https://api.ollama.com/v1' : 'http://localhost:11434/v1'}
+                            type={showKey ? 'text' : 'password'}
+                            value={providerKey}
+                            onChange={e => setProviderKey(e.target.value)}
+                            placeholder="Get your key at ollama.com/settings/keys"
+                            className="pr-10"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowKey(!showKey)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]"
+                          >
+                            {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          </button>
                         </div>
-                        <div>
-                          <label className="mb-2 block text-xs tracking-widest text-[#666]">API KEY</label>
-                          <div className="relative">
-                            <Input
-                              type={showKey ? 'text' : 'password'}
-                              value={providerKey}
-                              onChange={e => setProviderKey(e.target.value)}
-                              placeholder="Enter API key for cloud mode (leave empty for local)"
-                              className="pr-10"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowKey(!showKey)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]"
-                            >
-                              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                            </button>
-                          </div>
-                          <p className="mt-1.5 text-xs text-[#888]">
-                            {providerKey ? 'Cloud mode — uses Ollama Cloud API with API key' : 'Local mode — no API key needed'}
-                          </p>
-                        </div>
+                        <p className="mt-1.5 text-xs text-[#888]">Required for Ollama cloud models</p>
                       </div>
                     ) : (
                       <div>
@@ -369,7 +325,7 @@ export default function OnboardingPage() {
                     <Button
                       variant="outline"
                       onClick={testConnection}
-                      disabled={testResult === 'loading' || (!providerKey && selectedProvider !== 'ollama') || (selectedProvider === 'ollama' && baseUrl.includes('ollama.com') && !providerKey)}
+                      disabled={testResult === 'loading' || !providerKey}
                     >
                       {testResult === 'loading' ? (
                         <><Loader2 className="size-4 mr-2 animate-spin" /> Testing...</>
