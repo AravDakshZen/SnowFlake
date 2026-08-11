@@ -24,13 +24,14 @@ export async function GET(request: NextRequest) {
   }
 
   const errorBase = from === 'onboarding' ? '/onboarding' : '/settings'
+  const tabParam = from === 'onboarding' ? '' : '&tab=github'
   
-  if (error) return NextResponse.redirect(new URL(`${errorBase}?github=cancelled`, request.url))
-  if (!session?.user?.id || !code || !projectId) return NextResponse.redirect(new URL(`${errorBase}?github=invalid`, request.url))
+  if (error) return NextResponse.redirect(new URL(`${errorBase}?github=cancelled${tabParam}`, request.url))
+  if (!session?.user?.id || !code || !projectId) return NextResponse.redirect(new URL(`${errorBase}?github=invalid${tabParam}`, request.url))
 
   const clientId = process.env.GITHUB_CLIENT_ID
   const clientSecret = process.env.GITHUB_CLIENT_SECRET
-  if (!clientId || !clientSecret) return NextResponse.redirect(new URL(`${errorBase}?github=not_configured`, request.url))
+  if (!clientId || !clientSecret) return NextResponse.redirect(new URL(`${errorBase}?github=not_configured${tabParam}`, request.url))
 
   try {
     const redirectUri = getGitHubRedirectUri(request.nextUrl.origin)
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     const sql = getSql()
     const project = await sql`SELECT id FROM public.projects WHERE id = ${projectId} AND user_id = ${session.user.id} LIMIT 1`
-    if (!project.length) return NextResponse.redirect(new URL(`${errorBase}?github=not_found`, request.url))
+    if (!project.length) return NextResponse.redirect(new URL(`${errorBase}?github=not_found${tabParam}`, request.url))
 
     const encryptedToken = encryptValue(tokenData.access_token)
     await sql`
@@ -52,9 +53,9 @@ export async function GET(request: NextRequest) {
       VALUES (${projectId}, ${session.user.id}, '', '', 'main', ${encryptedToken})
       ON CONFLICT (project_id) DO UPDATE SET encrypted_token = ${encryptedToken}
     `
-    return NextResponse.redirect(new URL(`${errorBase}?github=connected`, request.url))
+    return NextResponse.redirect(new URL(`${errorBase}?github=connected${tabParam}`, request.url))
   } catch (cause) {
     console.error('[v0] GitHub OAuth callback failed', cause)
-    return NextResponse.redirect(new URL(`${errorBase}?github=failed`, request.url))
+    return NextResponse.redirect(new URL(`${errorBase}?github=failed${tabParam}`, request.url))
   }
 }

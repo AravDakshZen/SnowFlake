@@ -49,25 +49,49 @@ export default function OnboardingPage() {
   const [githubConnected, setGithubConnected] = useState(false)
   const [githubLoading, setGithubLoading] = useState(false)
   const [projectId, setProjectId] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const savedStep = localStorage.getItem('onboarding_step')
+    if (savedStep) {
+      const s = parseInt(savedStep, 10)
+      if (s >= 1 && s <= 4) setStep(s)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (loaded) {
+      localStorage.setItem('onboarding_step', step.toString())
+    }
+  }, [step, loaded])
 
   useEffect(() => {
     fetch('/api/project/current')
       .then(r => r.json())
-      .then(d => {
+      .then(async d => {
         if (d.project?.id) {
           setProjectId(d.project.id)
-          return fetch(`/api/project/apikey?projectId=${d.project.id}`).then(r => r.json())
-        }
-        return null
-      })
-      .then(d => {
-        if (d?.keys?.[0]) {
-          setApiKey(d.keys[0].maskedKey)
+          const [apikeyRes, githubRes] = await Promise.all([
+            fetch(`/api/project/apikey?projectId=${d.project.id}`).then(r => r.json()).catch(() => null),
+            fetch(`/api/github/repos?projectId=${d.project.id}`).then(r => r.json()).catch(() => null),
+          ])
+          if (apikeyRes?.keys?.[0]) {
+            setApiKey(apikeyRes.keys[0].maskedKey)
+          } else {
+            setApiKey('snow_live_' + 'X'.repeat(32))
+          }
+          if (githubRes && !githubRes.error) {
+            setGithubConnected(true)
+          }
         } else {
           setApiKey('snow_live_' + 'X'.repeat(32))
         }
+        setLoaded(true)
       })
-      .catch(() => setApiKey('snow_live_' + 'X'.repeat(32)))
+      .catch(() => {
+        setApiKey('snow_live_' + 'X'.repeat(32))
+        setLoaded(true)
+      })
   }, [])
 
   useEffect(() => {
@@ -76,10 +100,13 @@ export default function OnboardingPage() {
     if (githubStatus === 'connected') {
       setGithubConnected(true)
       toastSuccess('GitHub connected successfully')
+      window.history.replaceState({}, '', '/onboarding')
     } else if (githubStatus === 'cancelled') {
       toastError('GitHub authorization cancelled')
+      window.history.replaceState({}, '', '/onboarding')
     } else if (githubStatus === 'failed') {
       toastError('GitHub connection failed')
+      window.history.replaceState({}, '', '/onboarding')
     }
   }, [])
 
@@ -360,7 +387,7 @@ export default function OnboardingPage() {
                   }}
                   className="flex-1"
                 >
-                  Save and continue <ArrowRight className="ml-2 size-4" />
+                  {testResult === 'success' ? 'Continue' : 'Skip for now'} <ArrowRight className="ml-2 size-4" />
                 </Button>
               </div>
             </div>
@@ -413,7 +440,9 @@ export default function OnboardingPage() {
 
               <div className="flex gap-3">
                 <Button variant="ghost" onClick={() => setStep(2)}><ArrowLeft className="mr-2 size-4" /> Back</Button>
-                <Button onClick={() => setStep(4)} className="flex-1">Continue <ArrowRight className="ml-2 size-4" /></Button>
+                <Button onClick={() => setStep(4)} className="flex-1">
+                  {githubConnected ? 'Continue' : 'Skip for now'} <ArrowRight className="ml-2 size-4" />
+                </Button>
               </div>
             </div>
           )}

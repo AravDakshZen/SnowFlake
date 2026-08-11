@@ -16,7 +16,15 @@ import { RefreshCw, LogOut, CheckCircle2, XCircle, Key, Trash2, Save, User, Lock
 
 export default function SettingsPage() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('llm')
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const tab = params.get('tab')
+      if (tab) return tab
+      return localStorage.getItem('settings_tab') || 'llm'
+    }
+    return 'llm'
+  })
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [llmConfigs, setLLMConfigs] = useState<any>(null)
   const [alertConfigs, setAlertConfigs] = useState<any>(null)
@@ -98,10 +106,17 @@ export default function SettingsPage() {
   // Surface that status as a toast once, strip the param, and reload the
   // GitHub config so the UI reflects the new connection without a refresh.
   useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get('github')
+    const params = new URLSearchParams(window.location.search)
+    const status = params.get('github')
+    const tab = params.get('tab')
+    if (tab && ['llm', 'github', 'alerts', 'api', 'profile'].includes(tab)) {
+      setActiveTab(tab)
+      localStorage.setItem('settings_tab', tab)
+    }
     if (!status) return
     const url = new URL(window.location.href)
     url.searchParams.delete('github')
+    url.searchParams.delete('tab')
     window.history.replaceState(null, '', url.toString())
     const messages: Record<string, { kind: 'success' | 'error' | 'info'; title: string; description?: string }> = {
       connected: { kind: 'success', title: 'GitHub connected', description: 'Your repository integration is ready to use.' },
@@ -116,15 +131,20 @@ export default function SettingsPage() {
     if (config.kind === 'success') toastSuccess(config.title, config.description)
     else if (config.kind === 'error') toastError(config.title, config.description)
     else toastInfo(config.title, config.description)
-    if (status === 'connected') loadSettings()
+    if (status === 'connected') {
+      setActiveTab('github')
+      loadSettings()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     setMounted(true)
-    const tab = new URLSearchParams(window.location.search).get('tab')
+    const params = new URLSearchParams(window.location.search)
+    const tab = params.get('tab')
     if (tab && ['llm', 'github', 'alerts', 'api', 'profile'].includes(tab)) {
       setActiveTab(tab)
+      localStorage.setItem('settings_tab', tab)
     }
     fetch('/api/auth/profile').then(r => r.json()).then((data) => {
       if (data?.user) {
@@ -635,7 +655,10 @@ export default function SettingsPage() {
             <Button
               key={tab}
               variant="ghost"
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab)
+                localStorage.setItem('settings_tab', tab)
+              }}
               className={`px-4 py-3 text-sm font-light tracking-widest transition-all border-b-2 rounded-none ${
                 activeTab === tab
                   ? 'border-black text-black'
@@ -654,6 +677,7 @@ export default function SettingsPage() {
               LLM Configuration
             </RevealText>
             
+            {!editingConfigId && (
             <form id="llm-config-form" onSubmit={handleLLMSubmit} className="space-y-6">
               <div>
                 <label className="mb-2 block text-xs tracking-widest text-black/40">PROVIDER</label>
@@ -765,9 +789,10 @@ export default function SettingsPage() {
 
               <Button type="submit" disabled={actionLoading === 'llm'} className="w-full">
                 <Save className="mr-2 h-4 w-4" />
-                {actionLoading === 'llm' ? 'SAVING...' : editingConfigId ? 'SAVE CHANGES' : 'SAVE CONFIGURATION'}
+                {actionLoading === 'llm' ? 'SAVING...' : 'SAVE CONFIGURATION'}
               </Button>
             </form>
+            )}
 
             {settingsLoading ? (
               <div className="mt-8 p-6 rounded-xl border border-black/[0.07] bg-white">
@@ -984,8 +1009,9 @@ export default function SettingsPage() {
                     onClick={async () => {
                       if (!projectId) { return toastError('No project yet', 'Create a project before connecting GitHub.') }
                       setActionLoading('github-connect')
+                      localStorage.setItem('settings_tab', 'github')
                       toastInfo('Opening GitHub authorization', 'You will be redirected to GitHub to grant repo access.')
-                      window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}`
+                      window.location.href = `/api/github/connect?projectId=${encodeURIComponent(projectId)}&from=settings`
                     }}
                   >
                     <svg viewBox="0 0 16 16" className="size-4 fill-current mr-2" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
