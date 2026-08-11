@@ -45,6 +45,7 @@ export default function OnboardingPage() {
   const [baseUrl, setBaseUrl] = useState('')
   const [testResult, setTestResult] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [testLatency, setTestLatency] = useState(0)
+  const [testError, setTestError] = useState('')
   const [githubConnected, setGithubConnected] = useState(false)
   const [githubLoading, setGithubLoading] = useState(false)
   const [projectId, setProjectId] = useState<string | null>(null)
@@ -96,6 +97,7 @@ export default function OnboardingPage() {
   const testConnection = async () => {
     if (!selectedProvider) return
     setTestResult('loading')
+    setTestError('')
     const start = Date.now()
     try {
       const res = await fetch('/api/settings/llm/test-direct', {
@@ -108,15 +110,18 @@ export default function OnboardingPage() {
           baseUrl: baseUrl || PROVIDERS[selectedProvider]?.defaultBaseUrl || '',
         }),
       })
+      const data = await res.json()
       const latency = Date.now() - start
       if (res.ok) {
         setTestResult('success')
         setTestLatency(latency)
       } else {
         setTestResult('error')
+        setTestError(data.error || 'Connection failed')
       }
     } catch {
       setTestResult('error')
+      setTestError('Network error — please try again')
     }
   }
 
@@ -322,21 +327,26 @@ export default function OnboardingPage() {
                     )}
 
                     {/* Test connection */}
-                    <Button
-                      variant="outline"
-                      onClick={testConnection}
-                      disabled={testResult === 'loading' || !providerKey}
-                    >
-                      {testResult === 'loading' ? (
-                        <><Loader2 className="size-4 mr-2 animate-spin" /> Testing...</>
-                      ) : testResult === 'success' ? (
-                        <><Check className="size-4 mr-2 text-green-500" /> Connected · {testLatency}ms</>
-                      ) : testResult === 'error' ? (
-                        <span className="text-red-500">Connection failed</span>
-                      ) : (
-                        'Test connection'
+                    <div className="space-y-2">
+                      <Button
+                        variant="outline"
+                        onClick={testConnection}
+                        disabled={testResult === 'loading' || !providerKey}
+                      >
+                        {testResult === 'loading' ? (
+                          <><Loader2 className="size-4 mr-2 animate-spin" /> Testing...</>
+                        ) : testResult === 'success' ? (
+                          <><Check className="size-4 mr-2 text-green-500" /> Connected · {testLatency}ms</>
+                        ) : testResult === 'error' ? (
+                          <span className="text-red-500">Connection failed</span>
+                        ) : (
+                          'Test connection'
+                        )}
+                      </Button>
+                      {testResult === 'error' && testError && (
+                        <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{testError}</p>
                       )}
-                    </Button>
+                    </div>
                   </CardContent>
                 </Card>
               )}
