@@ -397,7 +397,7 @@ export async function getLLMProvider(provider: string, apiKey: string, model: st
     case 'anthropic': { const { AnthropicProvider } = await import('./providers/anthropic'); return new AnthropicProvider(apiKey, model) }
     case 'gemini': case 'google': { const { GeminiProvider } = await import('./providers/gemini'); return new GeminiProvider(apiKey, model) }
     case 'nvidia': { const { NvidiaProvider } = await import('./providers/nvidia'); return new NvidiaProvider(apiKey, model) }
-    case 'ollama': { const { OllamaProvider } = await import('./providers/ollama'); return new OllamaProvider(model, baseUrl ?? PROVIDERS.ollama.defaultBaseUrl) }
+    case 'ollama': { const { OllamaProvider } = await import('./providers/ollama'); return new OllamaProvider(model, baseUrl ?? PROVIDERS.ollama.defaultBaseUrl, apiKey || undefined) }
     case 'openrouter': { const { OpenRouterProvider } = await import('./providers/openrouter'); return new OpenRouterProvider(apiKey, model) }
     case 'together': { const { TogetherProvider } = await import('./providers/together'); return new TogetherProvider(apiKey, model) }
     case 'groq': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.groq, 'Groq') }
