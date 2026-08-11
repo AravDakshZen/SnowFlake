@@ -7,15 +7,30 @@ import { getGitHubRedirectUri } from '@/app/api/github/connect/route'
 export async function GET(request: NextRequest) {
   const session = await getSession()
   const code = request.nextUrl.searchParams.get('code')
-  const projectId = request.nextUrl.searchParams.get('state')
+  const stateParam = request.nextUrl.searchParams.get('state')
   const error = request.nextUrl.searchParams.get('error')
 
-  if (error) return NextResponse.redirect(new URL('/settings?github=cancelled', request.url))
-  if (!session?.user?.id || !code || !projectId) return NextResponse.redirect(new URL('/settings?github=invalid', request.url))
+  // Parse state - could be old format (just projectId) or new format (JSON with projectId and from)
+  let projectId: string | null = null
+  let from = 'settings'
+  if (stateParam) {
+    try {
+      const state = JSON.parse(stateParam)
+      projectId = state.projectId
+      from = state.from || 'settings'
+    } catch {
+      projectId = stateParam
+    }
+  }
+
+  const errorBase = from === 'onboarding' ? '/onboarding' : '/settings'
+  
+  if (error) return NextResponse.redirect(new URL(`${errorBase}?github=cancelled`, request.url))
+  if (!session?.user?.id || !code || !projectId) return NextResponse.redirect(new URL(`${errorBase}?github=invalid`, request.url))
 
   const clientId = process.env.GITHUB_CLIENT_ID
   const clientSecret = process.env.GITHUB_CLIENT_SECRET
-  if (!clientId || !clientSecret) return NextResponse.redirect(new URL('/settings?github=not_configured', request.url))
+  if (!clientId || !clientSecret) return NextResponse.redirect(new URL(`${errorBase}?github=not_configured`, request.url))
 
   try {
     const redirectUri = getGitHubRedirectUri(request.nextUrl.origin)
@@ -29,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     const sql = getSql()
     const project = await sql`SELECT id FROM public.projects WHERE id = ${projectId} AND user_id = ${session.user.id} LIMIT 1`
-    if (!project.length) return NextResponse.redirect(new URL('/settings?github=not_found', request.url))
+    if (!project.length) return NextResponse.redirect(new URL(`${errorBase}?github=not_found`, request.url))
 
     const encryptedToken = encryptValue(tokenData.access_token)
     await sql`
@@ -37,9 +52,9 @@ export async function GET(request: NextRequest) {
       VALUES (${projectId}, ${session.user.id}, '', '', 'main', ${encryptedToken})
       ON CONFLICT (project_id) DO UPDATE SET encrypted_token = ${encryptedToken}
     `
-    return NextResponse.redirect(new URL('/settings?github=connected', request.url))
+    return NextResponse.redirect(new URL(`${errorBase}?github=connected`, request.url))
   } catch (cause) {
     console.error('[v0] GitHub OAuth callback failed', cause)
-    return NextResponse.redirect(new URL('/settings?github=failed', request.url))
+    return NextResponse.redirect(new URL(`${errorBase}?github=failed`, request.url))
   }
 }

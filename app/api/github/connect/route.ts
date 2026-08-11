@@ -12,6 +12,7 @@ export function getGitHubRedirectUri(origin: string): string {
 
 export async function GET(request: NextRequest) {
   const projectId = request.nextUrl.searchParams.get('projectId')
+  const from = request.nextUrl.searchParams.get('from') || 'settings'
   if (!projectId) {
     return NextResponse.redirect(new URL('/settings?github=invalid', request.url))
   }
@@ -24,11 +25,14 @@ export async function GET(request: NextRequest) {
   const redirectUri = getGitHubRedirectUri(request.nextUrl.origin)
   const scope = 'repo write:repo_hook admin:repo_hook'
 
+  // Encode projectId and origin in state
+  const state = JSON.stringify({ projectId, from })
+
   const githubAuthUrl = new URL('https://github.com/login/oauth/authorize')
   githubAuthUrl.searchParams.set('client_id', clientId)
   githubAuthUrl.searchParams.set('redirect_uri', redirectUri)
   githubAuthUrl.searchParams.set('scope', scope)
-  githubAuthUrl.searchParams.set('state', projectId)
+  githubAuthUrl.searchParams.set('state', state)
 
   return NextResponse.redirect(githubAuthUrl.toString())
 }
