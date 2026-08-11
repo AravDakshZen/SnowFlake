@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Copy, Check, Eye, EyeOff, ArrowRight, ArrowLeft, Loader2, ExternalLink } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Copy, Check, Eye, EyeOff, ArrowRight, ArrowLeft, Loader2, ExternalLink, Github } from 'lucide-react'
 import { toastSuccess, toastError } from '@/lib/toasts'
 import { ProviderLogo } from '@/components/provider-select'
 import { PROVIDERS } from '@/lib/llm'
@@ -46,12 +47,14 @@ export default function OnboardingPage() {
   const [testLatency, setTestLatency] = useState(0)
   const [githubConnected, setGithubConnected] = useState(false)
   const [githubLoading, setGithubLoading] = useState(false)
+  const [projectId, setProjectId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/project/current')
       .then(r => r.json())
       .then(d => {
         if (d.project?.id) {
+          setProjectId(d.project.id)
           return fetch(`/api/project/apikey?projectId=${d.project.id}`).then(r => r.json())
         }
         return null
@@ -86,11 +89,11 @@ export default function OnboardingPage() {
   }
 
   const testConnection = async () => {
-    if (!selectedProvider) return
+    if (!selectedProvider || !projectId) return
     setTestResult('loading')
     const start = Date.now()
     try {
-      const res = await fetch(`/api/settings/llm/test?provider=${selectedProvider}`)
+      const res = await fetch(`/api/settings/llm/test?provider=${selectedProvider}&projectId=${projectId}`)
       const latency = Date.now() - start
       if (res.ok) {
         setTestResult('success')
@@ -108,9 +111,9 @@ export default function OnboardingPage() {
     try {
       const res = await fetch('/api/project/current')
       const data = await res.json()
-      const projectId = data?.project?.id
-      if (projectId) {
-        window.location.href = `/api/github/connect?projectId=${projectId}`
+      const pid = data?.project?.id
+      if (pid) {
+        window.location.href = `/api/github/connect?projectId=${pid}`
       }
     } catch {
       setGithubLoading(false)
@@ -140,6 +143,7 @@ export default function OnboardingPage() {
           model: selectedModel || PROVIDERS[selectedProvider]?.models[0] || '',
           api_key: providerKey || undefined,
           base_url: baseUrl || PROVIDERS[selectedProvider]?.defaultBaseUrl || '',
+          project_id: projectId,
         }),
       })
     } catch {}
@@ -150,8 +154,22 @@ export default function OnboardingPage() {
 
   return (
     <div className="bg-[#F5F4F0] text-[#111] h-screen font-sans antialiased flex flex-col overflow-hidden">
+      {/* Snowflake Logo Header */}
+      <div className="py-6 px-6 flex justify-center shrink-0">
+        <div className="flex items-center gap-2">
+          <svg className="size-8" viewBox="0 0 100 100" fill="none">
+            <path d="M50 5 L58 35 L90 35 L64 55 L72 85 L50 65 L28 85 L36 55 L10 35 L42 35 Z" fill="#29B5E8" />
+            <circle cx="50" cy="50" r="12" fill="white" />
+            <circle cx="50" cy="50" r="8" fill="#29B5E8" />
+          </svg>
+          <span className="text-lg font-light tracking-tight" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
+            Snowflake
+          </span>
+        </div>
+      </div>
+
       {/* Step indicator */}
-      <div className="py-8 px-6 flex justify-center shrink-0">
+      <div className="py-4 px-6 flex justify-center shrink-0">
         <div className="flex items-center gap-3">
           {[1, 2, 3, 4].map(s => (
             <React.Fragment key={s}>
@@ -170,20 +188,22 @@ export default function OnboardingPage() {
           {step === 1 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-3" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>Welcome to Snowflake</h1>
-                <p className="text-sm text-black/45 max-w-md mx-auto">Your project API key lets you send error logs to Snowflake from any backend. Keep it safe.</p>
+                <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-3 text-[#111]" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>Welcome to Snowflake</h1>
+                <p className="text-sm text-[#555] max-w-md mx-auto">Your project API key lets you send error logs to Snowflake from any backend. Keep it safe.</p>
               </div>
 
-              <div className="rounded-xl border border-black/[0.07] bg-white p-6">
-                <label className="mb-2 block text-xs tracking-widest text-black/40">PROJECT API KEY</label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 px-4 py-3 rounded-lg bg-[#1a1a2e] font-mono text-sm text-emerald-400/80 overflow-x-auto">{apiKey}</div>
-                  <Button variant="outline" size="icon" onClick={copyKey}>{copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}</Button>
-                </div>
-                <p className="mt-3 text-xs text-amber-600 flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full bg-amber-500" /> This key is shown once. Copy it now.
-                </p>
-              </div>
+              <Card className="border-black/[0.07] bg-white">
+                <CardContent className="p-6">
+                  <label className="mb-2 block text-xs tracking-widest text-[#666]">PROJECT API KEY</label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 px-4 py-3 rounded-lg bg-[#1a1a2e] font-mono text-sm text-emerald-400/80 overflow-x-auto">{apiKey}</div>
+                    <Button variant="outline" size="icon" onClick={copyKey}>{copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}</Button>
+                  </div>
+                  <p className="mt-3 text-xs text-amber-600 flex items-center gap-1.5">
+                    <span className="size-1.5 rounded-full bg-amber-500" /> This key is shown once. Copy it now.
+                  </p>
+                </CardContent>
+              </Card>
 
               <Button onClick={() => setStep(2)} className="w-full h-12">
                 Continue <ArrowRight className="ml-2 size-4" />
@@ -195,8 +215,8 @@ export default function OnboardingPage() {
           {step === 2 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-3" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>Connect your AI engine</h1>
-                <p className="text-sm text-black/45 max-w-md mx-auto">Snowflake uses your own API key to analyze errors. Your key is encrypted and never shared.</p>
+                <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-3 text-[#111]" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>Connect your AI engine</h1>
+                <p className="text-sm text-[#555] max-w-md mx-auto">Snowflake uses your own API key to analyze errors. Your key is encrypted and never shared.</p>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -218,79 +238,81 @@ export default function OnboardingPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className={`text-[9px] ${p.badgeColor}`}>{p.badge}</Badge>
-                      <span className="text-[11px] text-black/40">{p.desc}</span>
+                      <span className="text-[11px] text-[#666]">{p.desc}</span>
                     </div>
                   </button>
                 ))}
               </div>
 
               {selectedProvider && currentProviderDef && (
-                <div className="rounded-xl border border-black/[0.07] bg-white p-6 space-y-4">
-                  {/* Model selector */}
-                  <div>
-                    <label className="mb-2 block text-xs tracking-widest text-black/40">MODEL</label>
-                    <select
-                      value={selectedModel}
-                      onChange={e => setSelectedModel(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
-                    >
-                      {currentProviderDef.models.map(model => (
-                        <option key={model} value={model}>
-                          {model}{currentProviderDef.modelDetails?.[model]?.context ? ` (${currentProviderDef.modelDetails[model].context})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* API Key or Base URL */}
-                  {selectedProvider === 'ollama' ? (
+                <Card className="border-black/[0.07] bg-white">
+                  <CardContent className="p-6 space-y-4">
+                    {/* Model selector */}
                     <div>
-                      <label className="mb-2 block text-xs tracking-widest text-black/40">BASE URL</label>
-                      <Input
-                        value={baseUrl}
-                        onChange={e => setBaseUrl(e.target.value)}
-                        placeholder="http://localhost:11434/v1"
-                      />
+                      <label className="mb-2 block text-xs tracking-widest text-[#666]">MODEL</label>
+                      <select
+                        value={selectedModel}
+                        onChange={e => setSelectedModel(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-black/[0.07] bg-white text-sm focus:outline-none focus:border-black/20"
+                      >
+                        {currentProviderDef.models.map(model => (
+                          <option key={model} value={model}>
+                            {model}{currentProviderDef.modelDetails?.[model]?.context ? ` (${currentProviderDef.modelDetails[model].context})` : ''}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  ) : (
-                    <div>
-                      <label className="mb-2 block text-xs tracking-widest text-black/40">API KEY</label>
-                      <div className="relative">
+
+                    {/* API Key or Base URL */}
+                    {selectedProvider === 'ollama' ? (
+                      <div>
+                        <label className="mb-2 block text-xs tracking-widest text-[#666]">BASE URL</label>
                         <Input
-                          type={showKey ? 'text' : 'password'}
-                          value={providerKey}
-                          onChange={e => setProviderKey(e.target.value)}
-                          placeholder={placeholder}
-                          className="pr-10"
+                          value={baseUrl}
+                          onChange={e => setBaseUrl(e.target.value)}
+                          placeholder="http://localhost:11434/v1"
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowKey(!showKey)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-black/30 hover:text-black/60"
-                        >
-                          {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                        </button>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Test connection */}
-                  <Button
-                    variant="outline"
-                    onClick={testConnection}
-                    disabled={testResult === 'loading' || (selectedProvider !== 'ollama' && !providerKey)}
-                  >
-                    {testResult === 'loading' ? (
-                      <><Loader2 className="size-4 mr-2 animate-spin" /> Testing...</>
-                    ) : testResult === 'success' ? (
-                      <><Check className="size-4 mr-2 text-green-500" /> Connected · {testLatency}ms</>
-                    ) : testResult === 'error' ? (
-                      <span className="text-red-500">Connection failed</span>
                     ) : (
-                      'Test connection'
+                      <div>
+                        <label className="mb-2 block text-xs tracking-widest text-[#666]">API KEY</label>
+                        <div className="relative">
+                          <Input
+                            type={showKey ? 'text' : 'password'}
+                            value={providerKey}
+                            onChange={e => setProviderKey(e.target.value)}
+                            placeholder={placeholder}
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowKey(!showKey)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]"
+                          >
+                            {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          </button>
+                        </div>
+                      </div>
                     )}
-                  </Button>
-                </div>
+
+                    {/* Test connection */}
+                    <Button
+                      variant="outline"
+                      onClick={testConnection}
+                      disabled={testResult === 'loading' || (selectedProvider !== 'ollama' && !providerKey)}
+                    >
+                      {testResult === 'loading' ? (
+                        <><Loader2 className="size-4 mr-2 animate-spin" /> Testing...</>
+                      ) : testResult === 'success' ? (
+                        <><Check className="size-4 mr-2 text-green-500" /> Connected · {testLatency}ms</>
+                      ) : testResult === 'error' ? (
+                        <span className="text-red-500">Connection failed</span>
+                      ) : (
+                        'Test connection'
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
               )}
 
               <div className="flex gap-3">
@@ -312,32 +334,40 @@ export default function OnboardingPage() {
           {step === 3 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-3" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>Connect your GitHub repo</h1>
-                <p className="text-sm text-black/45 max-w-md mx-auto">Snowflake reads your source files to understand and fix the errors it detects.</p>
+                <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-3 text-[#111]" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>Connect your GitHub repo</h1>
+                <p className="text-sm text-[#555] max-w-md mx-auto">Snowflake reads your source files to understand and fix the errors it detects.</p>
               </div>
 
-              {!githubConnected ? (
-                <Button
-                  onClick={connectGitHub}
-                  className="w-full h-12"
-                  variant="outline"
-                  disabled={githubLoading}
-                >
-                  {githubLoading ? (
-                    <Loader2 className="size-4 mr-2 animate-spin" />
+              <Card className="border-black/[0.07] bg-white">
+                <CardContent className="p-6">
+                  {!githubConnected ? (
+                    <div className="text-center space-y-4">
+                      <div className="mx-auto size-16 rounded-full bg-[#24292f] flex items-center justify-center">
+                        <Github className="size-8 text-white" />
+                      </div>
+                      <p className="text-sm text-[#666]">
+                        Connect your GitHub account to enable automatic PR creation and CI integration.
+                      </p>
+                      <Button
+                        onClick={connectGitHub}
+                        className="w-full h-12 bg-[#24292f] hover:bg-[#1a1f23] text-white"
+                        disabled={githubLoading}
+                      >
+                        {githubLoading ? (
+                          <Loader2 className="size-4 mr-2 animate-spin" />
+                        ) : (
+                          <Github className="size-4 mr-2" />
+                        )}
+                        {githubLoading ? 'Connecting...' : 'Connect GitHub'}
+                      </Button>
+                    </div>
                   ) : (
-                    <svg viewBox="0 0 16 16" className="size-4 fill-current mr-2">
-                      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
-                    </svg>
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm">
+                      <Check className="size-4" /> GitHub connected successfully
+                    </div>
                   )}
-                  {githubLoading ? 'Connecting...' : 'Connect GitHub'}
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm">
-                  <Check className="size-4" /> GitHub connected successfully
-                  <ExternalLink className="size-3 ml-auto" />
-                </div>
-              )}
+                </CardContent>
+              </Card>
 
               <div className="flex gap-3">
                 <Button variant="ghost" onClick={() => setStep(2)}><ArrowLeft className="mr-2 size-4" /> Back</Button>
@@ -350,32 +380,74 @@ export default function OnboardingPage() {
           {step === 4 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-3" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>Snowflake is ready</h1>
+                <div className="mx-auto size-16 rounded-full bg-[#29B5E8]/10 flex items-center justify-center mb-4">
+                  <svg className="size-8" viewBox="0 0 100 100" fill="none">
+                    <path d="M50 5 L58 35 L90 35 L64 55 L72 85 L50 65 L28 85 L36 55 L10 35 L42 35 Z" fill="#29B5E8" />
+                    <circle cx="50" cy="50" r="12" fill="white" />
+                    <circle cx="50" cy="50" r="8" fill="#29B5E8" />
+                  </svg>
+                </div>
+                <h1 className="text-3xl md:text-4xl font-light tracking-tight mb-3 text-[#111]" style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>Snowflake is ready</h1>
+                <p className="text-sm text-[#555] max-w-md mx-auto">You're all set to start monitoring and fixing errors automatically.</p>
               </div>
 
-              <div className="rounded-xl border border-black/[0.07] bg-white p-6 space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Check className="size-4 text-green-500" /> API key copied
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  {selectedProvider ? (
-                    <><Check className="size-4 text-green-500" /> {ONBOARDING_PROVIDERS.find(p => p.id === selectedProvider)?.name} connected</>
-                  ) : (
-                    <><span className="size-4 rounded-full border border-black/20" /> No provider — add one in Settings</>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  {githubConnected ? (
-                    <><Check className="size-4 text-green-500" /> GitHub connected</>
-                  ) : (
-                    <><span className="size-4 rounded-full border border-black/20" /> No repo yet — connect one in Settings</>
-                  )}
-                </div>
-              </div>
+              <Card className="border-black/[0.07] bg-white">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="size-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <Check className="size-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-[#111]">API key copied</p>
+                      <p className="text-xs text-[#666]">Ready to receive error logs</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className={`size-8 rounded-full flex items-center justify-center ${selectedProvider ? 'bg-green-100' : 'bg-gray-100'}`}>
+                      {selectedProvider ? (
+                        <Check className="size-4 text-green-600" />
+                      ) : (
+                        <span className="size-3 rounded-full border-2 border-[#ccc]" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-[#111]">
+                        {selectedProvider ? (
+                          <>{ONBOARDING_PROVIDERS.find(p => p.id === selectedProvider)?.name} connected</>
+                        ) : (
+                          'No provider — add one in Settings'
+                        )}
+                      </p>
+                      <p className="text-xs text-[#666]">
+                        {selectedProvider ? 'AI analysis ready' : 'Configure an LLM provider'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className={`size-8 rounded-full flex items-center justify-center ${githubConnected ? 'bg-green-100' : 'bg-gray-100'}`}>
+                      {githubConnected ? (
+                        <Check className="size-4 text-green-600" />
+                      ) : (
+                        <span className="size-3 rounded-full border-2 border-[#ccc]" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-[#111]">
+                        {githubConnected ? 'GitHub connected' : 'No repo yet — connect one in Settings'}
+                      </p>
+                      <p className="text-xs text-[#666]">
+                        {githubConnected ? 'Auto-fix PRs enabled' : 'Source code access for debugging'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               <div className="flex gap-3">
                 <Button variant="ghost" onClick={() => setStep(3)}><ArrowLeft className="mr-2 size-4" /> Back</Button>
-                <Button onClick={completeOnboarding} className="flex-1 h-12">Open dashboard <ArrowRight className="ml-2 size-4" /></Button>
+                <Button onClick={completeOnboarding} className="flex-1 h-12 bg-[#29B5E8] hover:bg-[#2196cc] text-white">
+                  Open dashboard <ArrowRight className="ml-2 size-4" />
+                </Button>
               </div>
             </div>
           )}
