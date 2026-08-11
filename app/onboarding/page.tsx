@@ -279,14 +279,69 @@ export default function OnboardingPage() {
 
                     {/* API Key or Base URL */}
                     {selectedProvider === 'ollama' ? (
-                      <div>
-                        <label className="mb-2 block text-xs tracking-widest text-[#666]">OLLAMA ENDPOINT</label>
-                        <Input
-                          value={baseUrl}
-                          onChange={e => setBaseUrl(e.target.value)}
-                          placeholder="http://localhost:11434/v1"
-                        />
-                        <p className="mt-1.5 text-xs text-[#888]">No API key needed — Ollama runs locally on your machine.</p>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="mb-2 block text-xs tracking-widest text-[#666]">OLLAMA MODE</label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProviderKey('')
+                                setBaseUrl('http://localhost:11434/v1')
+                              }}
+                              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                !providerKey 
+                                  ? 'bg-[#111] text-white' 
+                                  : 'bg-black/5 text-[#666] hover:bg-black/10'
+                              }`}
+                            >
+                              Local
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBaseUrl('https://api.ollama.com/v1')
+                              }}
+                              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                providerKey 
+                                  ? 'bg-[#111] text-white' 
+                                  : 'bg-black/5 text-[#666] hover:bg-black/10'
+                              }`}
+                            >
+                              Cloud (Free)
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-xs tracking-widest text-[#666]">ENDPOINT</label>
+                          <Input
+                            value={baseUrl}
+                            onChange={e => setBaseUrl(e.target.value)}
+                            placeholder={providerKey ? 'https://api.ollama.com/v1' : 'http://localhost:11434/v1'}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-xs tracking-widest text-[#666]">API KEY</label>
+                          <div className="relative">
+                            <Input
+                              type={showKey ? 'text' : 'password'}
+                              value={providerKey}
+                              onChange={e => setProviderKey(e.target.value)}
+                              placeholder="Enter API key for cloud mode (leave empty for local)"
+                              className="pr-10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowKey(!showKey)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#333]"
+                            >
+                              {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            </button>
+                          </div>
+                          <p className="mt-1.5 text-xs text-[#888]">
+                            {providerKey ? 'Cloud mode — uses Ollama Cloud API with API key' : 'Local mode — no API key needed'}
+                          </p>
+                        </div>
                       </div>
                     ) : (
                       <div>
@@ -314,7 +369,7 @@ export default function OnboardingPage() {
                     <Button
                       variant="outline"
                       onClick={testConnection}
-                      disabled={testResult === 'loading' || (selectedProvider !== 'ollama' && !providerKey)}
+                      disabled={testResult === 'loading' || (!providerKey && selectedProvider !== 'ollama') || (selectedProvider === 'ollama' && baseUrl.includes('ollama.com') && !providerKey)}
                     >
                       {testResult === 'loading' ? (
                         <><Loader2 className="size-4 mr-2 animate-spin" /> Testing...</>

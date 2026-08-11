@@ -47,7 +47,9 @@ export async function POST(request: NextRequest) {
       const testPrompt = 'Say "hello" in one word.';
       
       // For providers that support embedding, test that
-      if (provider !== 'ollama') {
+      // Ollama cloud mode also supports embedding
+      const supportsEmbedding = provider !== 'ollama' || (provider === 'ollama' && apiKey);
+      if (supportsEmbedding) {
         try {
           const embedding = await llmProvider.embed(testPrompt);
           const latency = Date.now() - startTime;
