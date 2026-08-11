@@ -24,6 +24,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Local Ollama (localhost) can only be tested when running locally, not on Vercel
+    if (provider === 'ollama' && (!apiKey || !baseUrl || baseUrl.includes('localhost'))) {
+      if (process.env.VERCEL === '1' || process.env.NODE_ENV === 'production') {
+        return NextResponse.json({
+          status: 'failed',
+          error: 'Local Ollama cannot be tested from the cloud. You can still save it and use it when running the app locally. Cloud mode (api.ollama.com) works from here.',
+        }, { status: 400 });
+      }
+    }
+
     // For providers that require a key, check if key is provided
     const requiresKey = !['ollama'].includes(provider);
     if (requiresKey && !apiKey) {
