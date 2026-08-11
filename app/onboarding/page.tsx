@@ -71,9 +71,14 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('github') === 'connected') {
+    const githubStatus = params.get('github')
+    if (githubStatus === 'connected') {
       setGithubConnected(true)
       toastSuccess('GitHub connected successfully')
+    } else if (githubStatus === 'cancelled') {
+      toastError('GitHub authorization cancelled')
+    } else if (githubStatus === 'failed') {
+      toastError('GitHub connection failed')
     }
   }, [])
 
@@ -89,30 +94,20 @@ export default function OnboardingPage() {
   }
 
   const testConnection = async () => {
-    if (!selectedProvider || !projectId) return
+    if (!selectedProvider) return
     setTestResult('loading')
     const start = Date.now()
     try {
-      // First save the config to DB
-      const saveRes = await fetch('/api/settings/llm', {
+      const res = await fetch('/api/settings/llm/test-direct', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider: selectedProvider,
+          apiKey: providerKey || undefined,
           model: selectedModel || PROVIDERS[selectedProvider]?.models[0] || '',
-          api_key: providerKey || undefined,
-          base_url: baseUrl || PROVIDERS[selectedProvider]?.defaultBaseUrl || '',
-          project_id: projectId,
+          baseUrl: baseUrl || PROVIDERS[selectedProvider]?.defaultBaseUrl || '',
         }),
       })
-      
-      if (!saveRes.ok) {
-        setTestResult('error')
-        return
-      }
-
-      // Then test the connection
-      const res = await fetch(`/api/settings/llm/test?provider=${selectedProvider}&projectId=${projectId}`)
       const latency = Date.now() - start
       if (res.ok) {
         setTestResult('success')
@@ -132,7 +127,7 @@ export default function OnboardingPage() {
       const data = await res.json()
       const pid = data?.project?.id
       if (pid) {
-        window.location.href = `/api/github/connect?projectId=${pid}`
+        window.location.href = `/api/github/connect?projectId=${pid}&from=onboarding`
       }
     } catch {
       setGithubLoading(false)
@@ -285,12 +280,13 @@ export default function OnboardingPage() {
                     {/* API Key or Base URL */}
                     {selectedProvider === 'ollama' ? (
                       <div>
-                        <label className="mb-2 block text-xs tracking-widest text-[#666]">BASE URL</label>
+                        <label className="mb-2 block text-xs tracking-widest text-[#666]">OLLAMA ENDPOINT</label>
                         <Input
                           value={baseUrl}
                           onChange={e => setBaseUrl(e.target.value)}
                           placeholder="http://localhost:11434/v1"
                         />
+                        <p className="mt-1.5 text-xs text-[#888]">No API key needed — Ollama runs locally on your machine.</p>
                       </div>
                     ) : (
                       <div>
@@ -381,8 +377,14 @@ export default function OnboardingPage() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm">
-                      <Check className="size-4" /> GitHub connected successfully
+                    <div className="text-center space-y-3">
+                      <div className="mx-auto size-16 rounded-full bg-green-100 flex items-center justify-center">
+                        <Check className="size-8 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-700">GitHub connected!</p>
+                        <p className="text-sm text-[#666] mt-1">Good to go — Snowflake can now read your source files and create fix PRs.</p>
+                      </div>
                     </div>
                   )}
                 </CardContent>
