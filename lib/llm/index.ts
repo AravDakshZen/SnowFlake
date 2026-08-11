@@ -314,6 +314,32 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
       'nousresearch/hermes-3-llama-3.1-70b': { context: '128K' },
     },
   },
+  groq: {
+    id: 'groq', name: 'Groq', icon: 'G',
+    models: [
+      'llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'llama-3.1-70b-versatile',
+      'llama3-70b-8192', 'llama3-8b-8192',
+      'mixtral-8x7b-32768', 'gemma2-9b-it',
+      'deepseek-r1-distill-llama-70b', 'deepseek-r1-distill-llama-8b',
+      'qwen-qwq-32b',
+    ],
+    requiresKey: true,
+    isFree: true,
+    defaultBaseUrl: 'https://api.groq.com/openai/v1',
+    description: 'Ultra-fast inference with free tier — fastest LLM API.',
+    modelDetails: {
+      'llama-3.3-70b-versatile': { context: '128K', free: true },
+      'llama-3.1-8b-instant': { context: '128K', free: true },
+      'llama-3.1-70b-versatile': { context: '128K', free: true },
+      'llama3-70b-8192': { context: '8K', free: true },
+      'llama3-8b-8192': { context: '8K', free: true },
+      'mixtral-8x7b-32768': { context: '32K', free: true },
+      'gemma2-9b-it': { context: '8K', free: true },
+      'deepseek-r1-distill-llama-70b': { context: '128K', free: true },
+      'deepseek-r1-distill-llama-8b': { context: '128K', free: true },
+      'qwen-qwq-32b': { context: '128K', free: true },
+    },
+  },
   cerebras: {
     id: 'cerebras', name: 'Cerebras', icon: 'CB',
     models: [
@@ -353,7 +379,7 @@ export const PROVIDERS: Record<string, ProviderDefinition> = {
 // These share the same request/response shape — only the base URL differs.
 export const OPENAI_COMPAT_PROVIDERS = new Set([
   'openrouter', 'together', 'nvidia', 'ollama',
-  'cerebras', 'openai_compatible',
+  'cerebras', 'groq', 'openai_compatible',
 ])
 
 export const OPENAI_COMPAT_BASE_URLS: Record<string, string> = {
@@ -362,6 +388,7 @@ export const OPENAI_COMPAT_BASE_URLS: Record<string, string> = {
   nvidia: 'https://integrate.api.nvidia.com/v1',
   ollama: 'http://localhost:11434/v1',
   cerebras: 'https://api.cerebras.ai/v1',
+  groq: 'https://api.groq.com/openai/v1',
 }
 
 export async function getLLMProvider(provider: string, apiKey: string, model: string, baseUrl?: string): Promise<LLMProvider> {
@@ -373,6 +400,7 @@ export async function getLLMProvider(provider: string, apiKey: string, model: st
     case 'ollama': { const { OllamaProvider } = await import('./providers/ollama'); return new OllamaProvider(model, baseUrl ?? PROVIDERS.ollama.defaultBaseUrl) }
     case 'openrouter': { const { OpenRouterProvider } = await import('./providers/openrouter'); return new OpenRouterProvider(apiKey, model) }
     case 'together': { const { TogetherProvider } = await import('./providers/together'); return new TogetherProvider(apiKey, model) }
+    case 'groq': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.groq, 'Groq') }
     case 'cerebras': { const { OpenAICompatibleProvider } = await import('./providers/openai-compatible'); return new OpenAICompatibleProvider(apiKey, model, baseUrl ?? OPENAI_COMPAT_BASE_URLS.cerebras, 'Cerebras') }
     case 'openai_compatible': {
       if (!baseUrl) throw new Error('Custom OpenAI-compatible provider requires a Base URL.')
