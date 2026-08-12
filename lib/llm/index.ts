@@ -410,3 +410,78 @@ export async function getLLMProvider(provider: string, apiKey: string, model: st
     default: throw new Error(`Unsupported LLM provider: ${provider}`)
   }
 }
+
+export function shortModelName(model: string): string {
+  const parts = model.split('/')
+  return parts[parts.length - 1]
+}
+
+const FALLBACK_ORDER = [
+  'openai', 'anthropic', 'gemini',
+  'groq', 'openrouter', 'together', 'nvidia', 'ollama'
+]
+
+export interface FallbackConfig {
+  projectId: string
+  emitTerminalLine?: (tag: string, message: string) => void
+}
+
+export async function callWithFallback<T>(
+  primaryProvider: string,
+  callFn: (provider: LLMProvider) => Promise<T>,
+  configs: Array<{ provider: string; apiKey: string; model: string; baseUrl?: string; is_default?: boolean }>,
+  fallbackConfig: FallbackConfig,
+  maxFallbacks = 2
+): Promise<T> {
+  const tried: string[] = []
+  let lastError: Error | null = null
+  const emit = fallbackConfig.emitTerminalLine
+
+  const orderedConfigs = [
+    ...configs.filter(c => c.provider === primaryProvider),
+    ...configs.filter(c => c.provider !== primaryProvider)
+  ].slice(0, maxFallbacks + 1)
+
+  for (const config of orderedConfigs) {
+    try {
+      const provider = await getLLMProvider(config.provider, config.apiKey, config.model, config.baseUrl)
+      const isAvailable = await provider.isAvailable()
+
+      if (!isAvailable) {
+        tried.push(config.provider)
+        if (emit) {
+          emit('WARN', `Skipping ${config.provider} — not available, trying next`)
+        }
+        continue
+      }
+
+      if (tried.length > 0 && emit) {
+        emit('WARN', `Falling back from ${tried[tried.length - 1]} to ${config.provider} — reason: ${lastError?.message ?? 'provider unavailable'}`)
+      }
+
+      const result = await callFn(provider)
+
+      if (tried.length > 0 && emit) {
+        emit('INIT', `Successfully using ${config.provider} / ${shortModelName(config.model)} after ${tried.length} fallback${tried.length !== 1 ? 's' : ''}`)
+      }
+
+      return result
+
+    } catch (err: any) {
+      lastError = err
+      tried.push(config.provider)
+      if (emit) {
+        emit('WARN', `${config.provider} failed: ${err.message?.slice(0, 80) ?? 'unknown error'} — trying next provider`)
+      }
+    }
+  }
+
+  if (emit) {
+    emit('ERROR', `All ${tried.length} providers failed: ${tried.join(' → ')}`)
+    emit('ERROR', `Last error: ${lastError?.message?.slice(0, 120) ?? 'unknown'}`)
+  }
+
+  throw new Error(
+    `LLM call failed after trying: ${tried.join(', ')}. Last error: ${lastError?.message}`
+  )
+}
