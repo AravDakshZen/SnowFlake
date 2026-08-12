@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Clock, Play, GitBranch, Calendar, ChevronDown, Check } from 'lucide-react'
 import { ISSUE_CATEGORIES, calculateEstimatedMinutes, getSelectedCategories, type IssueCategory } from '@/types/event'
+import { SeverityBadge } from '@/components/ui/SeverityBadge'
 
 interface CreateEventFormProps {
   onSubmit: (data: CreateEventData) => void
@@ -53,6 +54,7 @@ function CategoryCheckbox({
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
+          <SeverityBadge severity={category.severity} />
           <span className="text-sm font-medium">{category.label}</span>
           <Badge variant="outline" className="text-[10px] px-1.5 py-0">
             ~{category.estimatedMinutes} min

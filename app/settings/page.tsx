@@ -8,6 +8,7 @@ import { ProviderChip, getProviderBrand } from '@/components/provider-icons'
 import { ProviderSelect, ProviderLogo } from '@/components/provider-select'
 import { PROVIDERS } from '@/lib/llm'
 import { ISSUE_CATEGORIES } from '@/types/event'
+import { SeverityBadge } from '@/components/ui/SeverityBadge'
 import { toastSuccess, toastError, toastInfo, toastLoading } from '@/lib/toasts'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -1179,7 +1180,10 @@ export default function SettingsPage() {
                             className="size-4 accent-black mt-0.5"
                           />
                           <div>
-                            <span className="text-sm text-black/80 group-hover:text-black">{cat.label}</span>
+                            <div className="flex items-center gap-2">
+                              <SeverityBadge severity={cat.severity} />
+                              <span className="text-sm text-black/80 group-hover:text-black">{cat.label}</span>
+                            </div>
                             <p className="text-xs text-black/40 mt-0.5">{cat.description}</p>
                           </div>
                         </label>

@@ -6,16 +6,18 @@ export interface IssueCategory {
   terminalTag: string
   estimatedMinutes: number
   promptInstructions: string
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info'
 }
 
 export const ISSUE_CATEGORIES: IssueCategory[] = [
   {
     id: 'critical_errors',
-    label: '🔴 Critical errors',
+    label: 'Critical errors',
     description: 'Crashes, unhandled exceptions, TypeErrors, ReferenceErrors, null pointer dereferences. These break your app right now.',
     priority: 1,
     terminalTag: '[CRITICAL]',
     estimatedMinutes: 2,
+    severity: 'critical',
     promptInstructions: `
       Priority 1 — CRITICAL ERRORS (fix these first, no exceptions):
       - Null/undefined property access without guards (TypeError)
@@ -30,11 +32,12 @@ export const ISSUE_CATEGORIES: IssueCategory[] = [
   },
   {
     id: 'security',
-    label: '🟠 Security vulnerabilities',
+    label: 'Security vulnerabilities',
     description: 'Hardcoded secrets, SQL injection risks, missing input sanitization, exposed API keys, unsafe eval.',
     priority: 2,
     terminalTag: '[SECURITY]',
     estimatedMinutes: 3,
+    severity: 'high',
     promptInstructions: `
       Priority 2 — SECURITY ISSUES (fix after critical errors):
       - Hardcoded API keys, tokens, passwords, or secrets in code
@@ -50,11 +53,12 @@ export const ISSUE_CATEGORIES: IssueCategory[] = [
   },
   {
     id: 'logic_errors',
-    label: '🟡 Logic and runtime warnings',
+    label: 'Logic and runtime warnings',
     description: 'Wrong operators, NaN-producing math, incorrect comparisons, off-by-one errors, silent failures.',
     priority: 3,
     terminalTag: '[LOGIC]',
     estimatedMinutes: 3,
+    severity: 'medium',
     promptInstructions: `
       Priority 3 — LOGIC ERRORS AND WARNINGS:
       - Assignment operator = used instead of === in conditionals
@@ -71,11 +75,12 @@ export const ISSUE_CATEGORIES: IssueCategory[] = [
   },
   {
     id: 'code_quality',
-    label: '🟢 Code quality and maintainability',
+    label: 'Code quality and maintainability',
     description: 'Dead code, unused variables, duplicate imports, overly complex functions, missing validation.',
     priority: 4,
     terminalTag: '[QUALITY]',
     estimatedMinutes: 4,
+    severity: 'low',
     promptInstructions: `
       Priority 4 — CODE QUALITY IMPROVEMENTS:
       - Unused variables and imports (remove them)
@@ -93,11 +98,12 @@ export const ISSUE_CATEGORIES: IssueCategory[] = [
   },
   {
     id: 'style_cleanup',
-    label: '⚪ Style and consistency',
+    label: 'Style and consistency',
     description: 'Console.logs, formatting, naming conventions, redundant comments, style inconsistencies.',
     priority: 5,
     terminalTag: '[STYLE]',
     estimatedMinutes: 2,
+    severity: 'info',
     promptInstructions: `
       Priority 5 — STYLE AND CLEANUP (last, lowest priority):
       - console.log, console.debug, console.warn left in production
