@@ -12,8 +12,26 @@ import { resolveAppUrl } from '@/lib/config';
 import { generatePRBody } from '@/lib/github/prBody';
 import { generateMultiFileCommitTitle } from '@/lib/github/commitMessage';
 import { cleanFiles, type CleanerResult } from '@/lib/engine/cleaner';
+import { detectLanguage } from '@/lib/utils/language';
+import { countDiffLines } from '@/lib/utils/diff';
 
 const APP_URL = resolveAppUrl();
+
+type TerminalTag = 'INIT' | 'FETCH' | 'SCAN' | 'PASS 1' | 'PASS 2' | 'PASS 3' | 'PASS 4' | 'FIX' | 'WARN' | 'PATCH' | 'PR' | 'CI' | 'ERROR' | 'DONE' | 'SKIP';
+
+function emitTerminalLine(
+  projectId: string,
+  tag: TerminalTag,
+  message: string
+) {
+  const timestamp = new Date().toTimeString().slice(0, 8);
+  emitToProject(projectId, 'terminal:line', {
+    timestamp,
+    tag,
+    message,
+    id: crypto.randomUUID()
+  });
+}
 
 const STACK_FRAME_FILE_RE = /\(?(.+?\.(?:ts|tsx|js|jsx|mjs|cjs|py|rb|go|java|php))(?::\d+){0,2}\)?$/;
 
@@ -845,7 +863,22 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
       rootCause: analysis.rootCause,
       affectedFile: analysis.affectedFile,
       confidence: analysis.confidence,
+      totalIssuesFixed: cleanerResult.totalIssuesFixed,
+      linesChanged: cleanerResult.fileResults.reduce((sum, r) => sum + r.linesChanged, 0),
     });
+
+    const rootCauseDescription = analysis.rootCause && !analysis.rootCause.match(/^(Issues found|Code improved|Fixed issues)/i)
+      ? analysis.rootCause
+      : `${cleanerResult.totalIssuesFixed} issue${cleanerResult.totalIssuesFixed !== 1 ? 's' : ''} fixed across ${cleanerResult.fileResults.filter(r => r.linesChanged > 0).length} file${cleanerResult.fileResults.filter(r => r.linesChanged > 0).length !== 1 ? 's' : ''}`;
+
+    emitTerminalLine(projectId, 'DONE',
+      `Investigation complete — ${cleanerResult.totalIssuesFixed} issue${cleanerResult.totalIssuesFixed !== 1 ? 's' : ''} fixed`);
+    emitTerminalLine(projectId, 'DONE',
+      `Confidence: ${analysis.confidence}% · Lines changed: ${cleanerResult.fileResults.reduce((sum, r) => sum + r.linesChanged, 0)}`);
+    emitTerminalLine(projectId, 'DONE',
+      `Root cause: ${rootCauseDescription}`);
+    emitTerminalLine(projectId, 'DONE',
+      `❄️ Snowflake investigation #${investigationId.substring(0, 8)} closed`);
 
     emitToProject(projectId, 'event:completed', {
       eventId: event.id,
@@ -853,7 +886,8 @@ export async function processEventAnalysis(job: InvestigationJob): Promise<void>
       investigationId,
       repo: `${event.repo_owner}/${event.repo_name}`,
       commitSha: commit.sha,
-      message: `Event "${event.name}" completed — ${analysis.rootCause}`,
+      rootCause: rootCauseDescription,
+      message: `Event "${event.name}" analysis completed`,
     });
 
     const autoPrEnabled = ghConfig.auto_pr ?? true;
