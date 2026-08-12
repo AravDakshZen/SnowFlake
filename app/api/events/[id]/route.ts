@@ -42,7 +42,7 @@ export async function PATCH(
         status = CASE WHEN ${triggerNow} THEN 'idle' ELSE status END,
         error = NULL
       WHERE id = ${id}
-      RETURNING id, name, repo_owner, repo_name, default_branch, fix_provider, fix_model, commit_provider, commit_model, status, last_commit_sha, error, created_at
+      RETURNING id, name, repo_owner, repo_name, default_branch, fix_provider, fix_model, commit_provider, commit_model, category_ids, status, last_commit_sha, error, created_at
     `;
 
     const event = updated[0];

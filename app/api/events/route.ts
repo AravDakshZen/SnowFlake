@@ -150,6 +150,7 @@ export async function GET(request: NextRequest) {
         fix_model,
         commit_provider,
         commit_model,
+        category_ids,
         status,
         last_commit_sha,
         last_run_at,
