@@ -13,32 +13,32 @@ type FeedEvent = { type: string; timestamp?: string; message?: string; [key: str
 interface TerminalLine {
   timestamp: string
   tag: string
-  tagColor: string
   message: string
 }
 
-const TAG_COLORS: Record<string, string> = {
-  INIT: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  FETCH: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-  SCAN: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  'PASS 1': 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  'PASS 2': 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-  'PASS 3': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  'PASS 4': 'bg-teal-500/10 text-teal-400 border-teal-500/20',
-  FIX: 'bg-green-500/10 text-green-400 border-green-500/20',
-  WARN: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  PATCH: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  PR: 'bg-green-500/10 text-green-400 border-green-500/20',
-  CI: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-  ERROR: 'bg-red-500/10 text-red-400 border-red-500/20',
-  DONE: 'bg-green-500/10 text-green-300 border-green-500/20',
-  EVENT: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
-  CRITICAL: 'bg-red-500/10 text-red-400 border-red-500/20',
-  SECURITY: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  LOGIC: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-  QUALITY: 'bg-green-500/10 text-green-400 border-green-500/20',
-  STYLE: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-}
+const TAG_CONFIG = {
+  INIT:   { variant: 'outline', className: 'border-blue-400 text-blue-400', label: 'INIT' },
+  FETCH:  { variant: 'outline', className: 'border-cyan-400 text-cyan-400', label: 'FETCH' },
+  SCAN:   { variant: 'outline', className: 'border-amber-400 text-amber-400', label: 'SCAN' },
+  'PASS 1': { variant: 'outline', className: 'border-orange-400 text-orange-400', label: 'PASS 1' },
+  'PASS 2': { variant: 'outline', className: 'border-yellow-400 text-yellow-400', label: 'PASS 2' },
+  'PASS 3': { variant: 'outline', className: 'border-purple-400 text-purple-400', label: 'PASS 3' },
+  'PASS 4': { variant: 'outline', className: 'border-teal-400 text-teal-400', label: 'PASS 4' },
+  FIX:    { variant: 'outline', className: 'border-green-400 text-green-400', label: 'FIX' },
+  WARN:   { variant: 'outline', className: 'border-amber-500 text-amber-500', label: 'WARN' },
+  PATCH:  { variant: 'outline', className: 'border-blue-500 text-blue-500', label: 'PATCH' },
+  PR:     { variant: 'outline', className: 'border-green-500 text-green-500', label: 'PR' },
+  CI:     { variant: 'outline', className: 'border-cyan-500 text-cyan-500', label: 'CI' },
+  ERROR:  { variant: 'destructive', label: 'ERROR' },
+  DONE:   { variant: 'outline', className: 'border-emerald-400 text-emerald-400 font-bold', label: 'DONE' },
+  SKIP:   { variant: 'secondary', label: 'SKIP' },
+  EVENT:  { variant: 'outline', className: 'border-violet-400 text-violet-400', label: 'EVENT' },
+  CRITICAL: { variant: 'destructive', label: 'CRITICAL' },
+  SECURITY: { variant: 'outline', className: 'border-orange-500 text-orange-600 bg-orange-500/10', label: 'SECURITY' },
+  LOGIC:    { variant: 'outline', className: 'border-yellow-500 text-yellow-600 bg-yellow-500/10', label: 'LOGIC' },
+  QUALITY:  { variant: 'outline', className: 'border-blue-400 text-blue-500 bg-blue-400/10', label: 'QUALITY' },
+  STYLE:    { variant: 'secondary', label: 'STYLE' },
+} as const
 
 const TAG_DESCRIPTIONS: Record<string, string> = {
   'PASS 1': 'Error detection & analysis - Scans source code to identify root cause and secondary issues',
@@ -47,7 +47,22 @@ const TAG_DESCRIPTIONS: Record<string, string> = {
   'PASS 4': 'Patch generation - Creates unified diff with confidence scoring',
 }
 
+function TerminalTagBadge({ tag }: { tag: string }) {
+  const config = TAG_CONFIG[tag as keyof typeof TAG_CONFIG] ?? {
+    variant: 'outline' as const, label: tag
+  }
+  return (
+    <Badge
+      variant={config.variant as any}
+      className={`font-mono text-[10px] px-1.5 py-0 h-5 shrink-0 ${config.className ?? ''}`}
+    >
+      {config.label}
+    </Badge>
+  )
+}
+
 function formatTime(ts?: string): string {
+  if (ts && ts.match(/^\d{2}:\d{2}:\d{2}$/)) return ts
   const d = ts ? new Date(ts) : new Date()
   return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
@@ -56,132 +71,138 @@ function mapEventToLines(event: FeedEvent): TerminalLine[] {
   const t = formatTime(event.timestamp)
   const d = event as Record<string, unknown>
   switch (event.type) {
+    case 'terminal:line':
+      return [{
+        timestamp: String(d.timestamp ?? t),
+        tag: String(d.tag ?? 'INIT'),
+        message: String(d.message ?? ''),
+      }]
     case 'log:received':
       return [
-        { timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: `New error log received — ${d.endpoint ?? ''} returned ${d.statusCode ?? ''}` },
-        { timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: `Stack trace captured (${d.lineCount ?? '?'} lines) — queuing investigation` },
+        { timestamp: t, tag: 'INIT', message: `New error log received — ${d.endpoint ?? ''} returned ${d.statusCode ?? ''}` },
+        { timestamp: t, tag: 'INIT', message: `Stack trace captured (${d.lineCount ?? '?'} lines) — queuing investigation` },
       ]
     case 'log:fingerprinted':
       return [
-        { timestamp: t, tag: 'SCAN', tagColor: TAG_COLORS.SCAN, message: `Fingerprinting error... similarity score: ${d.similarityScore ?? '?'}%` },
-        { timestamp: t, tag: 'SCAN', tagColor: TAG_COLORS.SCAN, message: d.isDuplicate ? `Duplicate detected — linked to cluster #${String(d.clusterId ?? '').slice(0, 6)}` : 'New error pattern — creating fresh investigation' },
+        { timestamp: t, tag: 'SCAN', message: `Fingerprinting error... similarity score: ${d.similarityScore ?? '?'}%` },
+        { timestamp: t, tag: 'SCAN', message: d.isDuplicate ? `Duplicate detected — linked to cluster #${String(d.clusterId ?? '').slice(0, 6)}` : 'New error pattern — creating fresh investigation' },
       ]
     case 'investigation:queued':
       return [
-        { timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: `Investigation #${String(d.investigationId ?? '').slice(0, 8)} queued (position ${d.queuePosition ?? '?'})` },
-        { timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: `Connecting to GitHub — ${d.owner ?? ''}/${d.repo ?? ''}` },
+        { timestamp: t, tag: 'INIT', message: `Investigation #${String(d.investigationId ?? '').slice(0, 8)} queued (position ${d.queuePosition ?? '?'})` },
+        { timestamp: t, tag: 'FETCH', message: `Connecting to GitHub — ${d.owner ?? ''}/${d.repo ?? ''}` },
       ]
     case 'engine:pass1':
       return [
-        { timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: `Fetching source file: ${d.filename ?? ''}` },
-        { timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: `File loaded — ${d.linesCount ?? '?'} lines of ${d.language ?? ''} code` },
-        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: 'Starting error detection pass...' },
-        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Using ${d.provider ?? 'LLM'} / ${d.model ?? 'model'} for detection pass` },
-        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Primary error located — line ${d.line ?? '?'}: ${d.shortDescription ?? ''}` },
-        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: 'Scanning entire file for secondary issues...' },
-        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Found ${d.count ?? '?'} additional issues to clean` },
+        { timestamp: t, tag: 'FETCH', message: `Fetching source file: ${d.filename ?? ''}` },
+        { timestamp: t, tag: 'FETCH', message: `File loaded — ${d.linesCount ?? '?'} lines of ${d.language ?? ''} code` },
+        { timestamp: t, tag: 'PASS 1', message: 'Starting error detection pass...' },
+        { timestamp: t, tag: 'PASS 1', message: `Using ${d.provider ?? 'LLM'} / ${String(d.model ?? 'model').split('/').pop()} for detection pass` },
+        { timestamp: t, tag: 'PASS 1', message: `Primary error located — line ${d.line ?? 'unknown'}: ${d.shortDescription ?? ''}` },
+        { timestamp: t, tag: 'PASS 1', message: 'Scanning entire file for secondary issues...' },
+        { timestamp: t, tag: 'PASS 1', message: `Found ${d.count ?? 0} additional issues to clean` },
       ]
     case 'engine:pass1:complete':
       return [
-        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Analysis complete — ${d.tokensUsed ?? '?'} tokens · ${d.latencyMs ?? '?'}ms` },
+        { timestamp: t, tag: 'PASS 1', message: `Analysis complete — ${d.tokensUsed ?? '?'} tokens · ${d.latencyMs ?? '?'}ms` },
       ]
     case 'engine:pass2':
       return [
-        { timestamp: t, tag: 'PASS 2', tagColor: TAG_COLORS['PASS 2'], message: 'Error fixes complete — starting quality pass' },
-        { timestamp: t, tag: 'PASS 2', tagColor: TAG_COLORS['PASS 2'], message: 'Improving code structure and readability...' },
-        { timestamp: t, tag: 'PASS 2', tagColor: TAG_COLORS['PASS 2'], message: `${d.count ?? '?'} quality improvements applied` },
+        { timestamp: t, tag: 'PASS 2', message: 'Error fixes complete — starting quality pass' },
+        { timestamp: t, tag: 'PASS 2', message: 'Improving code structure and readability...' },
+        { timestamp: t, tag: 'PASS 2', message: `${d.count ?? 0} quality improvements applied` },
       ]
     case 'engine:pass3':
       return [
-        { timestamp: t, tag: 'PASS 3', tagColor: TAG_COLORS['PASS 3'], message: 'Verifying cleaned output...' },
-        { timestamp: t, tag: 'PASS 3', tagColor: TAG_COLORS['PASS 3'], message: 'Re-reading entire file top to bottom' },
-        { timestamp: t, tag: 'PASS 3', tagColor: TAG_COLORS['PASS 3'], message: d.clean ? 'All checks passed — file is production ready' : 'Issue detected in verification — re-cleaning...' },
+        { timestamp: t, tag: 'PASS 3', message: 'Verifying cleaned output...' },
+        { timestamp: t, tag: 'PASS 3', message: 'Re-reading entire file top to bottom' },
+        { timestamp: t, tag: 'PASS 3', message: d.clean ? 'All checks passed — file is production ready' : 'Issue detected in verification — re-cleaning...' },
       ]
     case 'engine:pass4':
       return [
-        { timestamp: t, tag: 'PASS 4', tagColor: TAG_COLORS['PASS 4'], message: 'Generating unified diff patch...' },
-        { timestamp: t, tag: 'PASS 4', tagColor: TAG_COLORS['PASS 4'], message: `${d.linesChanged ?? '?'} lines changed across ${d.filesModified ?? '?'} files` },
-        { timestamp: t, tag: 'PATCH', tagColor: TAG_COLORS.PATCH, message: `Patch ready — confidence score: ${d.confidence ?? '?'}%` },
+        { timestamp: t, tag: 'PASS 4', message: 'Generating unified diff patch...' },
+        { timestamp: t, tag: 'PASS 4', message: `${d.linesChanged ?? 0} lines changed across ${d.filesModified ?? 0} file${d.filesModified !== 1 ? 's' : ''}` },
+        { timestamp: t, tag: 'PATCH', message: `Patch ready — confidence score: ${d.confidence ?? 0}%` },
       ]
     case 'engine:category:start':
       return [
-        { timestamp: t, tag: 'SCAN', tagColor: TAG_COLORS.SCAN, message: `━━━ Pass: ${d.categoryLabel ?? ''} ━━━━━━━━━━━` },
-        { timestamp: t, tag: String(d.terminalTag ?? 'SCAN'), tagColor: TAG_COLORS[String(d.terminalTag ?? 'SCAN')] || TAG_COLORS.SCAN, message: `Scanning for ${d.description ?? ''}...` },
+        { timestamp: t, tag: 'SCAN', message: `━━━ Pass: ${d.categoryLabel ?? ''} ━━━━━━━━━━━` },
+        { timestamp: t, tag: String(d.terminalTag ?? 'SCAN'), message: `Scanning for ${d.description ?? ''}...` },
       ]
     case 'engine:category:complete':
       return [
-        { timestamp: t, tag: String(d.terminalTag ?? 'SCAN'), tagColor: TAG_COLORS[String(d.terminalTag ?? 'SCAN')] || TAG_COLORS.SCAN, message: `${d.count ?? '?'} ${d.categoryLabel ?? ''} issues resolved ✓` },
+        { timestamp: t, tag: String(d.terminalTag ?? 'SCAN'), message: `${d.count ?? 0} ${d.categoryLabel ?? ''} issues resolved ✓` },
       ]
     case 'engine:issue': {
       const sev = String(d.severity ?? 'INFO').toUpperCase()
       const tag = sev === 'CRITICAL' || sev === 'HIGH' ? 'FIX' : 'WARN'
-      return [{ timestamp: t, tag, tagColor: TAG_COLORS[tag], message: `[${sev}] ${d.description ?? ''} at line ${d.line ?? '?'} — ${tag === 'FIX' ? 'fixing' : 'cleaning'}` }]
+      return [{ timestamp: t, tag, message: `[${sev}] ${d.description ?? ''} at line ${d.line ?? '?'} — ${tag === 'FIX' ? 'fixing' : 'cleaning'}` }]
     }
     case 'engine:model:used':
       return [
-        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Using ${d.provider ?? ''} / ${d.model ?? ''} for ${d.pass ?? 'analysis'} pass` },
-        { timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Analysis complete — ${d.tokensUsed ?? '?'} tokens · ${d.latencyMs ?? '?'}ms` },
+        { timestamp: t, tag: 'PASS 1', message: `Using ${d.provider ?? ''} / ${String(d.model ?? '').split('/').pop()} for ${d.pass ?? 'analysis'} pass` },
+        { timestamp: t, tag: 'PASS 1', message: `Analysis complete — ${d.tokensUsed ?? '?'} tokens · ${d.latencyMs ?? '?'}ms` },
       ]
     case 'pr:created':
       return [
-        { timestamp: t, tag: 'PR', tagColor: TAG_COLORS.PR, message: `Creating branch: ${d.branchName ?? ''}` },
-        { timestamp: t, tag: 'PR', tagColor: TAG_COLORS.PR, message: `Committing patch with message: "${d.commitTitle ?? ''}"` },
-        { timestamp: t, tag: 'PR', tagColor: TAG_COLORS.PR, message: `Pull request opened: #${d.prNumber ?? '?'}` },
-        { timestamp: t, tag: 'PR', tagColor: TAG_COLORS.PR, message: `View PR → ${d.prUrl ?? ''}` },
+        { timestamp: t, tag: 'PR', message: `Creating branch: ${d.branchName ?? ''}` },
+        { timestamp: t, tag: 'PR', message: `Committing patch with message: "${d.commitTitle ?? ''}"` },
+        { timestamp: t, tag: 'PR', message: `Pull request opened: #${d.prNumber ?? '?'}` },
+        { timestamp: t, tag: 'PR', message: `View PR → ${d.prUrl ?? ''}` },
       ]
     case 'ci:watching':
       return [
-        { timestamp: t, tag: 'CI', tagColor: TAG_COLORS.CI, message: `Watching CI pipeline on ${d.repoName ?? ''}...` },
-        { timestamp: t, tag: 'CI', tagColor: TAG_COLORS.CI, message: `Workflow: ${d.workflowName ?? ''} — status: running` },
+        { timestamp: t, tag: 'CI', message: `Watching CI pipeline on ${d.repoName ?? ''}...` },
+        { timestamp: t, tag: 'CI', message: `Workflow: ${d.workflowName ?? ''} — status: running` },
       ]
     case 'ci:failed_reinvestigating':
       return [
-        { timestamp: t, tag: 'ERROR', tagColor: TAG_COLORS.ERROR, message: 'CI failed — patch did not pass tests' },
-        { timestamp: t, tag: 'ERROR', tagColor: TAG_COLORS.ERROR, message: `Attempt ${d.attempt ?? '?'}/3 — starting re-investigation` },
-        { timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: 'Fetching CI failure log from GitHub Actions...' },
+        { timestamp: t, tag: 'ERROR', message: 'CI failed — patch did not pass tests' },
+        { timestamp: t, tag: 'ERROR', message: `Attempt ${d.attempt ?? '?'}/3 — starting re-investigation` },
+        { timestamp: t, tag: 'INIT', message: 'Fetching CI failure log from GitHub Actions...' },
       ]
     case 'alert:escalated':
       return [
-        { timestamp: t, tag: 'ERROR', tagColor: TAG_COLORS.ERROR, message: 'All 3 attempts failed — escalating to team' },
-        { timestamp: t, tag: 'ERROR', tagColor: TAG_COLORS.ERROR, message: 'Slack alert sent · Email alert sent' },
+        { timestamp: t, tag: 'ERROR', message: 'All 3 attempts failed — escalating to team' },
+        { timestamp: t, tag: 'ERROR', message: 'Slack alert sent · Email alert sent' },
       ]
     case 'investigation:complete':
       return [
-        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `Investigation complete — ${d.totalIssuesFixed ?? '?'} issues fixed` },
-        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `Confidence: ${d.confidence ?? '?'}% · Lines changed: ${d.linesChanged ?? '?'}` },
-        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `❄️ Snowflake investigation #${String(d.investigationId ?? '').slice(0, 8)} closed` },
+        { timestamp: t, tag: 'DONE', message: `Investigation complete — ${d.totalIssuesFixed ?? 0} issues fixed` },
+        { timestamp: t, tag: 'DONE', message: `Confidence: ${d.confidence ?? 0}% · Lines changed: ${d.linesChanged ?? 0}` },
+        { timestamp: t, tag: 'DONE', message: `❄️ Snowflake investigation #${String(d.investigationId ?? '').slice(0, 8)} closed` },
       ]
     case 'event:created':
       return [
-        { timestamp: t, tag: 'EVENT', tagColor: TAG_COLORS.EVENT, message: `Event "${d.name ?? ''}" created — waiting for trigger` },
+        { timestamp: t, tag: 'EVENT', message: `Event "${d.name ?? ''}" created — waiting for trigger` },
       ]
     case 'event:started':
       return [
-        { timestamp: t, tag: 'EVENT', tagColor: TAG_COLORS.EVENT, message: `Event "${d.name ?? ''}" started analyzing ${d.repo ?? ''}` },
-        { timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: `Fetching latest commit from ${d.repo ?? ''}` },
+        { timestamp: t, tag: 'EVENT', message: `Event "${d.name ?? ''}" started analyzing ${d.repo ?? ''}` },
+        { timestamp: t, tag: 'FETCH', message: `Fetching latest commit from ${d.repo ?? ''}` },
       ]
     case 'event:progress': {
       const stage = String(d.stage ?? '')
       if (stage === 'fetching_commit') {
-        return [{ timestamp: t, tag: 'FETCH', tagColor: TAG_COLORS.FETCH, message: `Fetching commit ${String(d.commitSha ?? '').substring(0, 7)}` }]
+        return [{ timestamp: t, tag: 'FETCH', message: `Fetching commit ${String(d.commitSha ?? '').substring(0, 7)}` }]
       }
       if (stage === 'analyzing') {
-        return [{ timestamp: t, tag: 'PASS 1', tagColor: TAG_COLORS['PASS 1'], message: `Analyzing with ${d.provider ?? ''}/${d.model ?? ''}` }]
+        return [{ timestamp: t, tag: 'PASS 1', message: `Analyzing with ${d.provider ?? ''}/${String(d.model ?? '').split('/').pop()}` }]
       }
-      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: `Progress: ${stage || 'unknown'}` }]
+      return [{ timestamp: t, tag: 'INIT', message: `Progress: ${stage || 'unknown'}` }]
     }
     case 'event:completed':
       return [
-        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `Event "${d.name ?? ''}" completed` },
-        { timestamp: t, tag: 'DONE', tagColor: TAG_COLORS.DONE, message: `Root cause: ${String(d.rootCause ?? d.message ?? '').substring(0, 80)}` },
+        { timestamp: t, tag: 'DONE', message: `Event "${d.name ?? ''}" analysis completed` },
+        { timestamp: t, tag: 'DONE', message: `Root cause: ${String(d.rootCause ?? d.message ?? '').substring(0, 80)}` },
       ]
     case 'event:failed':
-      return [{ timestamp: t, tag: 'ERROR', tagColor: TAG_COLORS.ERROR, message: `Event failed: ${String(d.error ?? '').substring(0, 100)}` }]
+      return [{ timestamp: t, tag: 'ERROR', message: `Event failed: ${String(d.error ?? '').substring(0, 100)}` }]
     case 'llm:fallback':
-      return [{ timestamp: t, tag: 'WARN', tagColor: TAG_COLORS.WARN, message: `Falling back from ${d.fromProvider ?? ''} to ${d.provider ?? ''}` }]
+      return [{ timestamp: t, tag: 'WARN', message: `Falling back from ${d.fromProvider ?? ''} to ${d.provider ?? ''} — reason: ${d.reason ?? 'provider unavailable'}` }]
     case 'llm:model_tried': {
       const success = d.success !== false
-      return [{ timestamp: t, tag: success ? 'PASS 1' : 'WARN', tagColor: success ? TAG_COLORS['PASS 1'] : TAG_COLORS.WARN, message: `${success ? '✓' : '✗'} ${d.provider ?? ''}/${d.model ?? ''} — ${success ? 'analysis succeeded' : String(d.error ?? 'failed').substring(0, 60)}` }]
+      return [{ timestamp: t, tag: success ? 'PASS 1' : 'WARN', message: `${success ? '✓' : '✗'} ${d.provider ?? ''}/${String(d.model ?? '').split('/').pop()} — ${success ? 'analysis succeeded' : String(d.error ?? 'failed').substring(0, 60)}` }]
     }
     default:
       return mapRawEvent(event)
@@ -195,9 +216,9 @@ function mapRawEvent(event: FeedEvent): TerminalLine[] {
 
   switch (event.type) {
     case 'connected':
-      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: 'Live stream connected' }]
+      return [{ timestamp: t, tag: 'INIT', message: 'Live stream connected' }]
     default:
-      return [{ timestamp: t, tag: 'INIT', tagColor: TAG_COLORS.INIT, message: msg || labels[event.type] || event.type }]
+      return [{ timestamp: t, tag: 'INIT', message: msg || labels[event.type] || event.type }]
   }
 }
 
@@ -403,23 +424,10 @@ export function TerminalFeed({ projectId, limit = 100 }: { projectId?: string; l
                 </div>
               )}
               {lines.map((line, i) => (
-                <div key={i} className="flex items-start gap-2 py-0.5 anim-fade-up" style={{ animationDelay: `${Math.min(i * 20, 200)}ms` }}>
-                  <span className="text-white/25 shrink-0">[{line.timestamp}]</span>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 h-5 font-[family-name:var(--font-mono)] cursor-help ${line.tagColor}`}>
-                          {line.tag}
-                        </Badge>
-                      </TooltipTrigger>
-                      {TAG_DESCRIPTIONS[line.tag] && (
-                        <TooltipContent side="top" className="max-w-xs">
-                          <p className="text-xs">{TAG_DESCRIPTIONS[line.tag]}</p>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </TooltipProvider>
-                  <span className="text-emerald-400/80">{line.message}</span>
+                <div key={i} className="flex items-center gap-2 font-mono text-sm py-0.5 anim-fade-up" style={{ animationDelay: `${Math.min(i * 20, 200)}ms` }}>
+                  <span className="text-white/25 shrink-0 text-xs w-20">[{line.timestamp}]</span>
+                  <TerminalTagBadge tag={line.tag} />
+                  <span className="text-emerald-400/80 flex-1">{line.message}</span>
                 </div>
               ))}
               <div className="text-emerald-400/60 mt-1">

@@ -8,21 +8,11 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Separator } from '@/components/ui/separator'
 import { FileCode, Download, ChevronDown, ChevronRight, Filter } from 'lucide-react'
 import type { FileCleanResult, Issue, IssueReport } from '@/types/investigation'
+import { SeverityBadge } from '@/components/ui/SeverityBadge'
 
 interface IssueReportPanelProps {
   fileResults: FileCleanResult[]
   totalIssuesFixed: number
-}
-
-function getSeverityColor(severity: string): string {
-  switch (severity) {
-    case 'critical': return 'bg-red-100 text-red-700 border-red-200'
-    case 'high': return 'bg-orange-100 text-orange-700 border-orange-200'
-    case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-200'
-    case 'low': return 'bg-green-100 text-green-700 border-green-200'
-    case 'info': return 'bg-gray-100 text-gray-700 border-gray-200'
-    default: return 'bg-gray-100 text-gray-700 border-gray-200'
-  }
 }
 
 function getCategoryColor(category: string): string {
@@ -70,9 +60,7 @@ function IssueTable({ issues }: { issues: Issue[] }) {
             <tr key={index} className="border-b border-black/5 hover:bg-black/5">
               <td className="py-2 px-3 text-black/40">{index + 1}</td>
               <td className="py-2 px-3">
-                <Badge variant="outline" className={`text-[10px] ${getSeverityColor(issue.severity)}`}>
-                  {issue.severity}
-                </Badge>
+                <SeverityBadge severity={issue.severity} />
               </td>
               <td className="py-2 px-3 font-mono text-xs">{issue.line}</td>
               <td className="py-2 px-3 max-w-xs truncate">{issue.description}</td>

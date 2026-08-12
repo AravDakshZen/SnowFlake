@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { GitPullRequest, ChevronDown, FileCode, Cpu, Clock, ExternalLink, Download, Bot } from 'lucide-react'
 import type { ModelsUsed, PassModelInfo } from '@/types/investigation'
+import { SeverityBadge } from '@/components/ui/SeverityBadge'
 
 function formatRelativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -22,12 +23,12 @@ function formatRelativeTime(dateStr: string): string {
   return `${days}d ago`
 }
 
-function getSeverity(statusCode?: number): { label: string; color: string } {
-  if (!statusCode) return { label: 'P3', color: 'bg-gray-100 text-gray-700 border-gray-200' }
-  if (statusCode >= 500) return { label: 'P0', color: 'bg-red-100 text-red-700 border-red-200' }
-  if (statusCode >= 400) return { label: 'P1', color: 'bg-amber-100 text-amber-700 border-amber-200' }
-  if (statusCode >= 300) return { label: 'P2', color: 'bg-blue-100 text-blue-blue border-blue-200' }
-  return { label: 'P3', color: 'bg-gray-100 text-gray-700 border-gray-200' }
+function getSeverity(statusCode?: number): { label: string; severity: 'critical' | 'high' | 'medium' | 'low' } {
+  if (!statusCode) return { label: 'P3', severity: 'low' }
+  if (statusCode >= 500) return { label: 'P0', severity: 'critical' }
+  if (statusCode >= 400) return { label: 'P1', severity: 'high' }
+  if (statusCode >= 300) return { label: 'P2', severity: 'medium' }
+  return { label: 'P3', severity: 'low' }
 }
 
 function getStatusColor(status: string): string {
@@ -210,7 +211,7 @@ function InvestigationCard({ inv, index }: { inv: any; index: number }) {
             {/* Top Row */}
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="outline" className={severity.color}>{severity.label}</Badge>
+                <Badge variant="outline" className="text-xs">{severity.label}</Badge>
                 <Badge variant="outline" className={getStatusColor(inv.status)}>{getStatusLabel(inv.status)}</Badge>
                 <ETACountdown createdAt={inv.created_at} status={inv.status} />
                 <span className="text-xs text-black/40 font-[family-name:var(--font-mono)]">{String(inv.id).slice(0, 8)}</span>

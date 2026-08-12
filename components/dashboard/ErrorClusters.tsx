@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, Clock, Activity, ExternalLink, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+import { SeverityBadge } from '@/components/ui/SeverityBadge'
 
 const SparklineChart = dynamic(() => import('./SparklineChart').then(m => m.SparklineChart), { ssr: false, loading: () => <div className="h-10 bg-black/5 rounded animate-pulse" /> })
 
@@ -24,12 +25,12 @@ function formatRelativeTime(dateStr: string): string {
   return `${days}d ago`
 }
 
-function getSeverityColor(severity: string): string {
+function getSeverityType(severity: string): 'critical' | 'high' | 'medium' | 'low' {
   switch (severity) {
-    case 'P0': return 'bg-red-100 text-red-700 border-red-200'
-    case 'P1': return 'bg-amber-100 text-amber-700 border-amber-200'
-    case 'P2': return 'bg-blue-100 text-blue-700 border-blue-200'
-    default: return 'bg-gray-100 text-gray-700 border-gray-200'
+    case 'P0': return 'critical'
+    case 'P1': return 'high'
+    case 'P2': return 'medium'
+    default: return 'low'
   }
 }
 
@@ -78,7 +79,7 @@ function ClusterCard({ cluster, index, onInvestigate, onViewLogs }: { cluster: a
             <span className="text-sm font-[family-name:var(--font-mono)] text-black/60">
               Cluster #{String(cluster.id).slice(0, 6)}
             </span>
-            <Badge variant="outline" className={getSeverityColor(cluster.severity)}>{cluster.severity}</Badge>
+            <SeverityBadge severity={getSeverityType(cluster.severity)} />
             <Badge variant="outline" className={getStatusColor(cluster.status)}>
               {cluster.status?.charAt(0).toUpperCase() + cluster.status?.slice(1)}
             </Badge>
