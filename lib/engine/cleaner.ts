@@ -3,6 +3,8 @@ import { getLLMProvider, type AnalysisResult } from '@/lib/llm'
 import { buildDetectionPrompt, type DetectionPromptInput } from '@/lib/engine/passes/pass1-detect'
 import { getSelectedCategories, type IssueCategory } from '@/types/event'
 import type { FileCleanResult, Issue, IssueReport, ModelsUsed, PassModelInfo } from '@/types/investigation'
+import { detectLanguage } from '@/lib/utils/language'
+import { countDiffLines } from '@/lib/utils/diff'
 
 export interface CleanerInput {
   sourceFiles: Record<string, string>
@@ -49,11 +51,6 @@ export async function cleanFiles(input: CleanerInput): Promise<CleanerResult> {
 
   const pass1Start = Date.now()
 
-  emitEvent?.('engine:pass1', {
-    model: `${provider}/${model}`,
-    fileCount: Object.keys(sourceFiles).length
-  })
-
   const detectionPrompt = buildDetectionPrompt({
     categoryIds,
     sourceFiles,
@@ -70,6 +67,23 @@ export async function cleanFiles(input: CleanerInput): Promise<CleanerResult> {
     tokensUsed: estimateTokens(detectionPrompt + JSON.stringify(sourceFiles)),
     latencyMs: pass1Latency
   }
+
+  // Emit pass1 events AFTER data is available
+  const firstFilePath = Object.keys(sourceFiles)[0] ?? 'unknown'
+  const firstFileContent = sourceFiles[firstFilePath] ?? ''
+  const lineCount = firstFileContent.split('\n').length
+  const language = detectLanguage(firstFilePath)
+
+  emitEvent?.('engine:pass1', {
+    filename: firstFilePath,
+    linesCount: lineCount,
+    language,
+    provider,
+    model,
+    line: analysisResult.affectedLine ?? 'unknown',
+    shortDescription: analysisResult.rootCause?.substring(0, 80) ?? '',
+    count: 0
+  })
 
   emitEvent?.('engine:pass1:complete', {
     model: `${provider}/${model}`,
@@ -112,7 +126,8 @@ export async function cleanFiles(input: CleanerInput): Promise<CleanerResult> {
 
   const pass2Start = Date.now()
   emitEvent?.('engine:pass2', {
-    fileCount: fileResults.length
+    fileCount: fileResults.length,
+    count: totalIssuesFixed
   })
 
   const pass2Latency = Date.now() - pass2Start
@@ -125,7 +140,8 @@ export async function cleanFiles(input: CleanerInput): Promise<CleanerResult> {
 
   const pass3Start = Date.now()
   emitEvent?.('engine:pass3', {
-    fileCount: fileResults.length
+    fileCount: fileResults.length,
+    clean: true
   })
 
   const pass3Latency = Date.now() - pass3Start
@@ -137,9 +153,15 @@ export async function cleanFiles(input: CleanerInput): Promise<CleanerResult> {
   }
 
   const pass4Start = Date.now()
+  const totalLinesChanged = fileResults.reduce((sum, r) => sum + r.linesChanged, 0)
+  const filesModified = fileResults.filter(r => r.linesChanged > 0).length
+
   emitEvent?.('engine:pass4', {
     fileCount: fileResults.length,
-    totalLinesChanged: fileResults.reduce((sum, r) => sum + r.linesChanged, 0)
+    totalLinesChanged,
+    linesChanged: totalLinesChanged,
+    filesModified,
+    confidence: analysisResult.confidence
   })
 
   const pass4Latency = Date.now() - pass4Start
