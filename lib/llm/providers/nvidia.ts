@@ -2,6 +2,11 @@ import type { LLMProvider, AnalysisResult } from '../index'
 import { parseAnalysisText, withTimeout, LLM_TIMEOUT_MS } from '../parse'
 import { ANALYSIS_SYSTEM_PROMPT, buildAnalysisPrompt } from '../prompt'
 
+export function shortModelName(model: string): string {
+  const parts = model.split('/')
+  return parts[parts.length - 1]
+}
+
 // Model-specific context window sizes (tokens). Used to auto-cap max_tokens.
 const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   'nvidia/nemotron-3-nano-30b-a3b': 4096,
